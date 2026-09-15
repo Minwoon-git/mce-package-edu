@@ -5,8 +5,8 @@
  * ※ 이메일은 IANA 예약 도메인(example.com/net/org), 휴대폰은 미할당 국번(010-0000-xxxx)만
  *    사용합니다 — 실수로 실제 발송이 나가도 외부에 도달하지 않습니다.
  * ---------------------------------------------------------------
- * 일반 이커머스(패션 쇼핑몰) 5개 테이블 CSV 생성 (GCS 업로드 → RAW DE Import용)
- *   1) MEMBER_INFO  회원        (10,000)
+ * 일반 이커머스(패션 쇼핑몰) 5개 테이블 CSV 생성 (SFMC UI에서 RAW DE로 직접 import)
+ *   1) MEMBER_INFO  회원        (3,000 — 상단 N_MEMBER 로 조정)
  *   2) ITEM_MST     상품
  *   3) ORDER_MST    주문
  *   4) ORDER_ITEM   주문상세
@@ -111,7 +111,7 @@ const CAT_W = [['상의', 34], ['하의', 24], ['아우터', 13], ['신발', 16]
 const pickItem = () => pick(byCat[wpick(CAT_W)]);
 
 // ── 2) 회원 (MEMBER_INFO) ────────────────────────────────────────
-const N_MEMBER = 10000;
+const N_MEMBER = 3000;
 const START = new Date(Date.UTC(2022, 0, 1));
 const GRADE_BY_SPEND = (amt) => amt >= 2000000 ? 'VIP' : amt >= 600000 ? 'GOLD' : 'BASIC';
 

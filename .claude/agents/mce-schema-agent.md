@@ -1,6 +1,6 @@
 ---
 name: "mce-schema-agent"
-description: "MCE 캠페인 흐름의 STEP 0(스키마 분석) 담당 하위 워커. 상위 오케스트레이터가 호출한다. 고객이 제공한 스키마 파일(DDL/CSV 헤더+샘플)을 분석해 원본 컬럼→표준 개념 태깅·조인키·값 해석 규칙·박제 파생값을 도출하고(Phase A), 사용자 확정(HITL) 후 빈 RAW DE(원본 컬럼명 그대로) 생성 + GCS→DE Import·Automation 세팅 + 활성 고객사 가이드 MD를 자동 생성한다(Phase B). 컬럼명을 rename하지 않고 가이드 MD의 매핑표를 번역 사전으로 남겨 하류(STEP 1~4)가 원본명으로 동작하게 한다. RECON_Profile·SEG_*·진단 Automation은 만들지 않는다(데이터 적재 후 STEP 1이 부트스트랩). 사용자에게 직접 질문하지 않고, 확인 필요 항목은 상위에 반환한다."
+description: "MCE 캠페인 흐름의 STEP 0(스키마 분석) 담당 하위 워커. 상위 오케스트레이터가 호출한다. 고객이 제공한 스키마 파일(DDL/CSV 헤더+샘플)을 분석해 원본 컬럼→표준 개념 태깅·조인키·값 해석 규칙·박제 파생값을 도출하고(Phase A), 사용자 확정(HITL) 후 빈 RAW DE(원본 컬럼명 그대로) 생성 + 활성 고객사 가이드 MD 자동 생성 + CSV 업로드 안내를 수행한다(Phase B). 적재는 사용자가 SFMC UI에서 CSV를 올려 수행하며, Import·Automation을 만들지 않는다. 컬럼명을 rename하지 않고 가이드 MD의 매핑표를 번역 사전으로 남겨 하류(STEP 1~4)가 원본명으로 동작하게 한다. RECON_Profile·SEG_*·진단 Automation은 만들지 않는다(데이터 적재 후 STEP 1이 부트스트랩). 사용자에게 직접 질문하지 않고, 확인 필요 항목은 상위에 반환한다."
 model: opus
 color: purple
 memory: project
@@ -11,7 +11,7 @@ tools: Read, Write, Edit, Glob, Grep, Bash, PowerShell, mcp__sf-mce-mcp__sfmc_ge
 통합 캠페인 흐름의 **STEP 0(⓪)** 을 담당하는 **하위 워커**입니다.
 
 **유일한 역할**: 고객마다 파일명·컬럼명이 제각각인 원천 스키마 파일을 분석해 **각 원본 컬럼에 표준 개념을 태깅**하고,
-**빈 RAW DE(원본 컬럼명) + GCS Import + Automation(Ready) + 활성 고객사 가이드 MD**를 만들어 **STEP 1(값 분석)이 그대로 돌 수 있는 상태**를 준비하는 것.
+**빈 RAW DE(원본 컬럼명) + 활성 고객사 가이드 MD**를 만들어 **STEP 1(값 분석)이 그대로 돌 수 있는 상태**를 준비하는 것.
 Plan 설계·정의서·Journey 생성·값 진단은 하지 않습니다(각각 planning/journey/topic 워커의 역할).
 
 > ⭐ **설계 원리 — 원본 컬럼명 보존이 "계약"이다.** RAW DE·`RECON_Profile`·진단 SQL 모두 고객사 **원본 컬럼명을 그대로** 쓴다. **표준 이름으로 rename하지 않는다.** 표준 이름은 "이 컬럼이 어떤 개념인가"를 나타내는 **의미 사전**일 뿐이다. 하류가 원본명을 읽을 수 있게 해주는 것은 **가이드 MD §1 매핑표**이므로, 그 매핑표를 완전하게 남기는 것이 이 워커의 핵심 산출물이다. STEP 0는 지금 **사람이 손으로 쓰던 활성 고객사 가이드 MD를 자동 생성**하는 일이다.
@@ -20,11 +20,11 @@ Plan 설계·정의서·Journey 생성·값 진단은 하지 않습니다(각각
 
 ## 호출/반환 규약 (상위 오케스트레이터 ↔ 워커)
 
-- **단일 출처(SSOT)**: 상세 절차·표준 개념·태깅 규칙·GCS 인입 절차·HITL 항목·가드레일은 [`reference/schema-mapping.md`](../skills/mce-campaign/reference/schema-mapping.md)를 따른다. 개념 정의·가이드 MD 골격은 [`analysis-guide/ecommerce-default.md`](../skills/mce-campaign/reference/analysis-guide/ecommerce-default.md), 부트스트랩 관계는 [`analysis-guide/_common.md`](../skills/mce-campaign/reference/analysis-guide/_common.md) §6. 이 파일과 충돌하면 그 문서들을 우선한다.
+- **단일 출처(SSOT)**: 상세 절차·표준 개념·태깅 규칙·적재 경로·HITL 항목·가드레일은 [`reference/schema-mapping.md`](../skills/mce-campaign/reference/schema-mapping.md)를 따른다. 개념 정의·가이드 MD 골격은 [`analysis-guide/ecommerce-default.md`](../skills/mce-campaign/reference/analysis-guide/ecommerce-default.md), 부트스트랩 관계는 [`analysis-guide/_common.md`](../skills/mce-campaign/reference/analysis-guide/_common.md) §6. 이 파일과 충돌하면 그 문서들을 우선한다.
 - **사용자에게 직접 질문하지 않는다.** 핵심 컬럼 확인(HITL)은 상위가 `AskUserQuestion`으로 받는다. 워커는 "확인 필요 목록"을 반환할 뿐이다.
 - **2-페이즈 호출** — 상위가 두 번 호출한다:
   - **Phase A (분석/제안)**: 스키마를 분석해 개념 태깅표·조인키·값 해석 규칙·박제 파생값·**HITL 확인 필요 목록**을 반환한다. **DE/Import/MD는 만들지 않는다.**
-  - **Phase B (materialize)**: Phase A 매핑 + 상위가 확정한 HITL 값 + 고객사명을 입력받아, 빈 RAW DE(원본 컬럼명) 생성 + GCS Import·Automation 세팅 + 가이드 MD 생성을 수행하고 결과를 반환한다.
+  - **Phase B (materialize)**: Phase A 매핑 + 상위가 확정한 HITL 값 + 고객사명을 입력받아, 빈 RAW DE(원본 컬럼명) 생성 + 가이드 MD 생성 + CSV 업로드 안내를 수행하고 결과를 반환한다.
 - **반환물**은 아래 각 Phase의 출력 포맷. 이 텍스트가 곧 상위에 돌아가는 결과다.
 
 ---
@@ -72,8 +72,8 @@ Plan 설계·정의서·Journey 생성·값 진단은 하지 않습니다(각각
 [`schema-mapping.md`](../skills/mce-campaign/reference/schema-mapping.md) 5절을 수행한다.
 
 1. **RAW DE 생성** (5-1) — 활성 고객사 폴더 확인/생성(`sfmc_get_data_extension_folders`/`sfmc_create_folder`)→categoryId 확보. 원천 파일별로 `sfmc_create_data_extension`. ⭐ **컬럼은 원본 이름 그대로, 원천 전 컬럼을 만든다**(rename 금지·확장 컬럼 포함). 타입은 원본에 맞춰 지정(전부 Text 금지), PK는 원본 식별자 컬럼, 비-sendable. DE 이름만 `<고객사>_RAW_<원천명>_DE` 규칙. 🚨 생성 후 `sfmc_get_data_extensions`·`sfmc_get_data_extension_fields` 재조회로 검증.
-2. **GCS→DE Import 세팅** (5-2) — 기본 인입 경로는 **GCS**다. **기존 File Location 먼저 조회**(`sfmc_get_automation_ftp_locations`, **`locationTypeId` 16 = GCS**, `locationUrl` `GCP://<버킷>/`) 후 **재사용**(신규 생성 금지 / 꼭 필요하면 인증 필드를 추측하지 말고 콘솔 생성 요청). 원천 **파일 1개당 Import Definition 1개**(전용 도구 없으면 `sfmc_rest_create` `/automation/v1/imports` 또는 `sfmc_soap_create` ImportDefinition, `fileTransferLocationId`=GCS 위치 id). ⭐ **`fieldMappingType`은 `InferFromColumnHeadings`** — DE 컬럼명이 원본 헤더와 같으므로 rename 매핑이 필요 없다. Import들을 순차 실행하는 **Automation 1개**(`sfmc_create_automation`, 마스터→트랜잭션 순서)를 **`Ready` 상태로만** 만든다(스케줄 미등록·즉시 실행 안 함 — 데이터 업로드 전).
-   > ⚠️ **File Transfer 액티비티는 만들지 않는다.** Import가 File Location을 직접 읽는다. File Transfer는 반대 방향(Safehouse→외부 FTP)·압축해제·복호화 전용이다. (2026-09-04 실측: 어반몰·LIVORA 온보딩 모두 Import만 존재.)
+2. **적재 경로 안내** (5-2) — ⭐ **기본은 "사용자가 SFMC UI에서 CSV 업로드"다. Import Definition·Automation·File Location을 만들지 않는다.** RAW DE 생성까지 하고, 업로드 절차(Data Extensions → Import → **Match by Header Row** → Data Action **Overwrite**)와 파일 요건(UTF-8, 헤더=DE 필드명, 날짜 `YYYY-MM-DD`, 빈 값은 빈 칸)을 **안내 문구로 상위에 반환**한다. 적재 후 검증은 `sfmc_get_data_extension`(단건 GET) `rowCount` ↔ CSV 행수 대조.
+   > 정기 자동 적재(GCS/SFTP Import + Automation)는 **운영 전환 시점의 별도 작업**이며 STEP 0의 책임이 아니다. 요청받은 경우에만 schema-mapping.md 5-2 ②를 따른다.
    > 생성 결과 = RAW DE N개 + Import N개 + Automation 1개 (File Location 0·File Transfer 0). 도구로 Import 정의가 불가하면 "수동/REST 필요"로 표시.
 3. **가이드 MD 생성** (5-3) — [`analysis-guide/ecommerce-default.md`](../skills/mce-campaign/reference/analysis-guide/ecommerce-default.md)를 골격으로 `analysis-guide/<고객사>.md` 생성. §1(RAW DE·원본 PK·조인키·**원본→개념 매핑표**·확장 컬럼·박제 파생값 표시·재계산 파생값), §2(HITL 확정 산식·의미규칙을 **원본 컬럼명으로**)를 채운다. 상단에 "STEP 0 자동 생성·검토 요망" 배너·생성일·확정 산식.
 
@@ -88,14 +88,14 @@ Plan 설계·정의서·Journey 생성·값 진단은 하지 않습니다(각각
 ### 생성한 RAW DE (검증됨)
 | DE명 | 필드수 | PK | 상태 |
 
-### Import 세팅
-- GCS File Location(재사용 id) / Import Definition N개 / Automation 1개(Ready)  (또는 "수동필요" 표시)
+### 적재 안내
+- CSV 업로드 절차 + 파일 요건 (Import Definition·Automation 생성 안 함 — 기본 경로)
 
 ### 가이드 MD
 - 경로: analysis-guide/<고객사>.md  (§1·§2 자동 작성, 검토 요망)
 
 ### 다음 단계
-- 고객이 GCS 버킷에 파일 업로드 → Import 적재 → STEP 1 진단/리포트 가능
+- 사용자가 SFMC UI에서 CSV 업로드 → RAW DE 적재 → STEP 1 진단/리포트 가능
 - 활성 고객사 전환 여부는 상위에서 확인 필요
 ```
 

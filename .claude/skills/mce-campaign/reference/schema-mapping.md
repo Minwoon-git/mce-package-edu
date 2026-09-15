@@ -1,13 +1,13 @@
-# 스키마 매핑 (STEP 0) — 고객 스키마 분석 → 개념 태깅 → GCS 데이터 인입 세팅
+# 스키마 매핑 (STEP 0) — 고객 스키마 분석 → 개념 태깅 → RAW DE 준비
 
 > **이 문서는 STEP 0(스키마 분석)의 단일 출처(SSOT)다.** 워커 `mce-schema-agent`와 오케스트레이터가 함께 따른다.
 > STEP 0는 **캠페인 생성(STEP 1~4)의 앞단**이다. 고객마다 파일명·컬럼명이 제각각인 원천 데이터를,
-> **원본 컬럼명 그대로** RAW DE에 담고 각 컬럼에 표준 개념을 태깅한 뒤, GCS Import를 세팅해 **STEP 1(값 분석)이 그대로 돌 수 있는 상태**를 만든다.
+> **원본 컬럼명 그대로** 담을 빈 RAW DE를 만들고 각 컬럼에 표준 개념을 태깅해, CSV만 올리면 **STEP 1(값 분석)이 그대로 돌 수 있는 상태**를 만든다.
 
 ```
-[STEP 0] 스키마 분석 → 개념 태깅 → 핵심 컬럼 확인(HITL) → RAW DE(원본 컬럼명) + GCS Import + Automation + 가이드 MD
+[STEP 0] 스키마 분석 → 개념 태깅 → 핵심 컬럼 확인(HITL) → 빈 RAW DE(원본 컬럼명) + 가이드 MD
    │  산출물 ①: 매핑표(구조) — 데이터 없이도 나옴
-   ▼  ⏳ 데이터 적재 게이트 (고객이 GCS 버킷에 업로드 → Import가 RAW DE 채움)
+   ▼  ⏳ 데이터 적재 게이트 (사용자가 SFMC UI에서 CSV 업로드 → RAW DE 적재)
 [STEP 1] 값 분석 → 진단 → 분석 리포트(PPT)   ← 산출물 ②
 [STEP 2~4] 기획/정의서 → Journey → 결과 보고
 ```
@@ -67,7 +67,7 @@ STEP 0는 **스키마(구조)** 만 있으면 된다. 실제 데이터 행은 �
 **태깅 결과는 가이드 MD §1의 매핑표에 기록한다.** 이 매핑표가 하류의 **유일한 번역 사전**이므로 누락하면 안 된다.
 
 ```
-예) GCS_Test_Customer(원본) → 개념 태깅
+예) RAW_Customers(원본) → 개념 태깅
     CustomerID          → member_id (PK)
     EmailOptIn          → email_consent   (Y/N)
     TotalPurchaseAmount → total_spent 개념 ⚠ 박제 파생값 — 주문 원천 인입 후에는 재계산본이 정답
@@ -130,7 +130,7 @@ STEP 0는 **스키마(구조)** 만 있으면 된다. 실제 데이터 행은 �
 
 ---
 
-## 5. Materialize (확정 후) — RAW DE + GCS Import + Automation + 가이드 MD
+## 5. Materialize (확정 후) — RAW DE + 가이드 MD
 
 > HITL 확정값을 받은 뒤 실행한다. **부하 방지 대전제 유지**: 원천 raw 행을 끌어오지 않는다. DE는 "빈 테이블"로 만들고, 적재는 Import(서버)가 한다.
 
@@ -144,41 +144,53 @@ STEP 0는 **스키마(구조)** 만 있으면 된다. 실제 데이터 행은 �
   - 비-sendable로 만든다(발송 DE 아님).
 - 🚨 **생성 후 검증**: `sfmc_get_data_extensions`·`sfmc_get_data_extension_fields`로 재조회해 실제 생성·필드 구성을 확인하고, 확인된 것만 보고한다(추정 금지).
 
-### 5-2. GCS → RAW DE Import 세팅 (**기본 인입 경로 = GCS**)
+### 5-2. 데이터 적재 경로 — **기본 = CSV 직접 업로드**
 
-> ⭐ **이 패키지의 기본 데이터 인입 경로는 Google Cloud Storage다.** 고객사가 GCS 버킷에 원천 파일을 올리면 Import가 직접 읽어 RAW DE를 채운다.
-> (SFTP·S3도 SFMC가 지원하므로 고객사 사정에 따라 대체 가능하지만, **기본 가정·기본 문구·기본 안내는 GCS**로 한다.)
+> ⭐ **이 패키지의 기본 적재 경로는 "사용자가 SFMC UI에서 CSV를 올리는 것"이다.**
+> STEP 0는 **빈 RAW DE까지만 만들고 끝낸다** — File Location·Import Definition·Automation을 만들지 않는다.
+> 버킷·인증 준비가 필요 없어 첫 적재까지 가장 빨리 도달하고, 온보딩 초기엔 파일이 한 번만 들어오는 경우가 대부분이다.
+> **정기 자동 적재가 필요해지면** 그때 ②로 전환한다(운영 전환 시점의 별도 작업 — STEP 0의 책임이 아니다).
 
-**① File Location 확보 — 조회 우선, 생성은 최후**
-- `sfmc_get_automation_ftp_locations`로 **기존 위치를 먼저 조회**한다. 등록된 GCS 위치가 있으면 그 `id`를 **재사용**한다(신규 생성 금지).
-  - `locationTypeId`: **`16` = Google Cloud Storage** (`locationUrl` = `GCP://<버킷>/`) ← 기본. 참고: `0`=Enhanced FTP, `4`=Salesforce Objects & Reports.
-- 새 위치가 꼭 필요하면 `sfmc_rest_create`(`/data/v1/filetransferlocation`)를 쓴다. ⚠️ **GCS 인증 필드 형태는 도구 문서에 없다** — 추측해서 생성하지 말고 **콘соль(Setup → Data Management → File Locations)에서 생성한 뒤 `id`만 조회해 쓰도록** 상위에 요청한다.
+**① 기본 — CSV 직접 업로드 (STEP 0의 종료 지점)**
 
-**② Import Definition — 원천 파일 1개당 1개**
-- 전용 MCP 도구가 없으면 **`sfmc_rest_create`(`/automation/v1/imports`) 또는 `sfmc_soap_create`(ImportDefinition)** 로 생성한다.
-- `fileTransferLocationId` = ①의 GCS 위치 id. **Import가 GCS에서 직접 읽으므로 File Transfer 액티비티는 만들지 않는다.**
-- ⭐ **`fieldMappingType`은 `InferFromColumnHeadings`** 를 쓴다. RAW DE 컬럼명 = 원본 헤더명이므로 헤더가 그대로 맞아떨어진다. **`ManualMap` rename을 쓰지 않는다.**
-  - 헤더와 DE 컬럼명이 안 맞는 예외(원천 헤더에 공백·특수문자가 있어 DE 필드명으로 못 쓰는 경우)에만 `ManualMap`을 쓰고, 그 사실을 가이드 §1에 기록한다.
-- `fileSpec`(파일명 패턴): 고정 파일명이면 그대로, 날짜가 붙으면 `<원천명>_%%Year%%%%Month%%%%Day%%.csv` 패턴을 쓴다.
-- `updateTypeId`: ⭐ **전 파일 `4`(Overwrite) 를 기본으로 쓴다** — 고정 파일명 전량 스냅샷 인입이므로 마스터·트랜잭션 구분 없이 Overwrite가 맞다. ⚠️ **`updateTypeId: 2` 금지** — Add-and-Update가 아니며, 빈 DE에 `Completed`/`TotalRows 0`/`NumberErrors 0` 으로 **조용히 0행 적재**된다(2026-09-04 실측, `error-log.md` 참조). 증분 파일을 받는 고객사만 HITL로 갱신 방식을 재확정한다.
+Phase B는 빈 RAW DE 생성까지 하고, **업로드 안내를 상위에 반환**한다. 실제 적재는 사용자가 화면에서 한다.
 
-**③ Import Automation — 1개**
-- `sfmc_create_automation`으로 **Import들을 순차 실행하는 Automation 1개**를 만든다(파일이 N개여도 Automation은 1개).
-  - 조인 대상이 되는 마스터(고객·상품)를 앞 스텝, 트랜잭션(주문·주문상세·쿠폰)을 뒤 스텝에 둔다.
-- **`Ready` 상태로만 만들고 스케줄을 등록하지 않는다.** 온보딩 단계에서는 고객 파일 업로드 전이라 돌릴 게 없다. 첫 업로드 확인 후 일배치(예: 05:30 KST, `FREQ=DAILY`, `timeZoneId` 48)로 전환한다.
+| # | 작업 | 위치 / 값 |
+|---|---|---|
+| 1 | 대상 DE 선택 → **Import** | Email Studio → Subscribers → Data Extensions (또는 Contact Builder → Data Extensions) |
+| 2 | 파일 지정 | 작은 파일은 **내 PC에서 직접 업로드**, 큰 파일은 Enhanced FTP `/Import` 에 올린 뒤 선택 |
+| 3 | 필드 매핑 | **Match by Header Row** — DE 컬럼명 = 원본 헤더명이라 그대로 맞는다 |
+| 4 | Data Action | **Overwrite**(전량 교체) — 스냅샷 재적재가 기본 |
+| 5 | 실행 → 결과 건수 확인 | |
 
-> ⚠️ **File Transfer 액티비티는 이 경로에 필요 없다.** Import Definition이 File Location을 직접 참조하기 때문이다. File Transfer는 반대 방향(Safehouse → 외부 FTP, 예: 감사로그 내보내기)이나 압축 해제·복호화가 필요할 때만 쓴다. (2026-09-04 계정 실측: 어반몰·LIVORA 온보딩 모두 Import만 존재, File Transfer 0개.)
-> ⚠️ Import Definition 생성이 사용 가능한 도구로 불가하면, **RAW DE까지 만들고 Import 정의는 "수동/REST 필요"로 표시**해 상위에 반환한다(지어내지 않는다).
+- **파일 요건**: UTF-8 CSV, 첫 행이 헤더, 헤더는 RAW DE 필드명과 **철자·대소문자까지 동일**.
+- **순서**: 마스터(고객·상품) 먼저, 트랜잭션(주문·주문상세·쿠폰) 나중. RAW 단계엔 FK 제약이 없어 강제되진 않지만 건수 대조가 쉬워진다.
+- **날짜 포맷**: `YYYY-MM-DD` / `YYYY-MM-DD HH:MM:SS`. 빈 값은 **빈 칸**으로 둔다(`NULL`·`-` 같은 문자열 금지 — Date 필드 적재가 통째로 실패한다).
+- 🚨 **적재 후 검증 의무**: `sfmc_get_data_extension`(**단건 GET**)의 `rowCount`를 원본 CSV 행수와 대조한다. 목록 API(`sfmc_get_data_extensions`)의 rowCount는 캐시값이라 적재 후에도 0으로 보인다([`error-log.md`](error-log.md)).
 
-**생성 결과 요약 (파일 N개 기준)**
+**② 선택 — 정기 자동 적재 (GCS/SFTP Import + Automation)**
 
-| 객체 | 개수 |
-|---|---|
-| RAW DE | N (파일당 1) |
-| Import Definition | N (파일당 1) |
-| Automation | 1 (Ready, 스케줄 미등록) |
-| File Location | 0 (기존 GCS 위치 재사용) |
-| File Transfer | 0 (불필요) |
+매일·매주 파일이 갱신되는 **운영 단계에서만** 만든다. 온보딩 첫 적재에는 쓰지 않는다.
+전환 시 아래를 따른다(이 경로를 실제로 만들 때만 읽으면 된다):
+
+- **File Location** — `sfmc_get_automation_ftp_locations`로 **기존 위치를 먼저 조회해 재사용**한다(신규 생성 금지).
+  `locationTypeId`: **`16` = Google Cloud Storage**(`locationUrl` = `GCP://<버킷>/`), `0` = Enhanced FTP, `4` = Salesforce Objects & Reports.
+  새 위치가 꼭 필요하면 **인증 필드를 추측해 만들지 말고**, 콘솔(Setup → Data Management → File Locations)에서 생성한 뒤 `id`만 조회해 쓰도록 상위에 요청한다.
+- **Import Definition** — 원천 파일 1개당 1개. 전용 도구가 없으면 `sfmc_rest_create`(`/automation/v1/imports`) 또는 `sfmc_soap_create`(ImportDefinition).
+  `fileTransferLocationId` = 위 위치 id. ⭐ `fieldMappingType` 은 **`InferFromColumnHeadings`** (DE 컬럼명 = 원본 헤더명이므로 rename 매핑 불필요).
+  `updateTypeId`: ⭐ **`4`(Overwrite)**. ⚠️ **`2` 금지** — Add-and-Update가 아니며 빈 DE에 `Completed`/`TotalRows 0`/`NumberErrors 0` 으로 **조용히 0행 적재**된다(2026-09-04 실측, `error-log.md`).
+- **Automation 1개** — Import들을 순차 실행(마스터→트랜잭션 순). 첫 업로드 확인 후 일배치(예: 05:30 KST, `FREQ=DAILY`, `timeZoneId` 48)로 스케줄한다.
+- ⚠️ **File Transfer 액티비티는 필요 없다.** Import Definition이 File Location을 직접 참조한다. File Transfer는 반대 방향(Safehouse → 외부 FTP, 예: 감사로그 내보내기)이나 압축 해제·복호화에만 쓴다.
+
+**STEP 0 생성 결과 요약 (원천 파일 N개 기준)**
+
+| 객체 | 개수 | 비고 |
+|---|---|---|
+| RAW DE | N (파일당 1) | 빈 테이블 |
+| Import Definition | **0** | 기본 경로에선 만들지 않음 (②로 전환 시에만) |
+| Automation | **0** | 〃 |
+| File Location | **0** | 〃 |
+| File Transfer | **0** | 어느 경로에서도 불필요 |
 
 ### 5-3. 활성 고객사 가이드 MD 자동 생성
 [`analysis-guide/ecommerce-default.md`](analysis-guide/ecommerce-default.md)를 **골격 템플릿**으로 복제해 `analysis-guide/<고객사>.md`를 생성한다. 채우는 내용:
@@ -187,7 +199,7 @@ STEP 0는 **스키마(구조)** 만 있으면 된다. 실제 데이터 행은 �
 - **§3 기준선 / §4 SEG_* / §5 진입DE / §6 기획 / §7 전이**: 템플릿 값을 기본으로 두되, 고객사 특이사항이 있으면 반영(없으면 템플릿 유지 — AI가 STEP 1에서 프로파일링해 정함).
 - 파일 상단에 "STEP 0 자동 생성, 사람이 검토 요망" 배너와 생성일·확정 산식을 남긴다.
 
-> `RECON_Profile`·`SEG_*`·`CP_DIAGNOSIS_AUTOMATION`은 STEP 0가 만들지 않는다 — 데이터가 적재된 뒤 **STEP 1이 이 가이드를 읽어 자동 부트스트랩**한다([`analysis-guide/_common.md`](analysis-guide/_common.md) §6). STEP 0의 책임은 **빈 RAW DE + Import + 가이드 MD**까지다.
+> `RECON_Profile`·`SEG_*`·`CP_DIAGNOSIS_AUTOMATION`은 STEP 0가 만들지 않는다 — 데이터가 적재된 뒤 **STEP 1이 이 가이드를 읽어 자동 부트스트랩**한다([`analysis-guide/_common.md`](analysis-guide/_common.md) §6). STEP 0의 책임은 **빈 RAW DE + 가이드 MD**까지다(적재는 사용자가 CSV 업로드로 수행).
 
 ### 5-4. 활성 고객사 전환 (오케스트레이터)
 가이드 MD가 생성되면, **오케스트레이터가 사용자에게 전환 여부를 확인한 뒤** SKILL.md "활성 고객사" 줄과 CLAUDE.md 라우팅의 활성 고객사 표기를 `<고객사>`로 바꾼다. (활성 소스 변경은 시스템 전체에 영향을 주므로 **명시적 단계**로 둔다. 워커가 임의로 전환하지 않는다.)

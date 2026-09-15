@@ -6,7 +6,7 @@ Salesforce Marketing Cloud Engagement (MCE) MCP 서버입니다. Claude Code에�
 > 계정 고유값은 `<확인필요: …>` 자리표시자로 표시돼 있습니다.
 > **구축 순서와 교체 대상은 [`docs/신규고객사_구축_체크리스트.md`](docs/신규고객사_구축_체크리스트.md)를 먼저 보세요.**
 >
-> 🎓 **처음이라면** — 실제 고객사 데이터를 붙이기 전에 동봉된 가상 데이터셋([`docs/schema-samples/urbanmall/`](docs/schema-samples/urbanmall/), 회원 10,000명)으로
+> 🎓 **처음이라면** — 실제 고객사 데이터를 붙이기 전에 동봉된 가상 데이터셋([`docs/schema-samples/urbanmall/`](docs/schema-samples/urbanmall/), 회원 3,000명)으로
 > STEP 0→1→2→3을 그대로 한 바퀴 돌려볼 수 있습니다. 체크리스트 **0단계** 참조.
 
 ---

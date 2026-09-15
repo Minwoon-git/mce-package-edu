@@ -71,9 +71,9 @@ description: >
 [STEP 0] 스키마 분석  →  고객 스키마 파일(DDL/CSV) 분석 → 표준 매핑
    │        Phase A: 매핑표·조인키·값변환 + HITL 확인목록 반환
    │        [★핵심 컬럼 확인] 오케스트레이터가 AskUserQuestion (핵심 ID·금액 산식·취소환불·동의값)
-   │        Phase B: 빈 RAW DE(원본 컬럼명) + GCS→DE Import + Automation(Ready) + 활성 고객사 가이드 MD 자동생성
+   │        Phase B: 빈 RAW DE(원본 컬럼명) + 활성 고객사 가이드 MD 자동생성 + CSV 업로드 안내
    │        → 활성 고객사 전환(오케스트레이터, 사용자 확인 후)
-   ▼        ⏳ 데이터 적재 게이트 (고객이 GCS 버킷에 업로드 → Import가 RAW DE 채움)
+   ▼        ⏳ 데이터 적재 게이트 (사용자가 SFMC UI에서 CSV 업로드 → RAW DE 적재)
    │
 사용자: "신규 회원을 위한 캠페인 생성"
    │
@@ -153,7 +153,7 @@ description: >
 
 # STEP 0 — 스키마 분석 (신규 고객사 온보딩 시에만)
 
-> 고객마다 파일명·컬럼명이 제각각인 원천 데이터의 **각 컬럼에 표준 개념을 태깅**하고, **빈 RAW DE(원본 컬럼명) + GCS Import + 활성 고객사 가이드 MD**를 세팅해 STEP 1이 그대로 돌 수 있게 만드는 **앞단**이다. **상세 절차·표준 개념·태깅 규칙·HITL 항목·가드레일의 SSOT = [`reference/schema-mapping.md`](reference/schema-mapping.md).** 실작업은 `mce-schema-agent` 워커에 위임한다.
+> 고객마다 파일명·컬럼명이 제각각인 원천 데이터의 **각 컬럼에 표준 개념을 태깅**하고, **빈 RAW DE(원본 컬럼명) + 활성 고객사 가이드 MD**를 준비해, CSV만 올리면 STEP 1이 그대로 돌 수 있게 만드는 **앞단**이다. **상세 절차·표준 개념·태깅 규칙·HITL 항목·가드레일의 SSOT = [`reference/schema-mapping.md`](reference/schema-mapping.md).** 실작업은 `mce-schema-agent` 워커에 위임한다.
 >
 > ⭐ **원본 컬럼명 보존이 "계약"이다.** RAW DE·`RECON_Profile`·진단 SQL 모두 고객사 **원본 컬럼명을 그대로** 쓴다(rename 금지). 표준 이름은 DE에 넣는 이름이 아니라 **의미 사전**이며, 하류가 원본명을 읽게 해주는 것은 **가이드 MD §1 매핑표**다. STEP 0는 지금 사람이 손으로 쓰던 활성 고객사 가이드 MD를 **자동 생성**하는 일이다.
 > ⭐ **분석 대상은 "구조(스키마)"** 다 — 데이터 없이도 동작한다. **값 분석·캠페인 추천은 데이터 적재 후 STEP 1**에서 나온다(리포트는 요청 시에만).
@@ -174,9 +174,9 @@ STEP 0의 HITL(핵심 컬럼 확인)은 워커가 격리 실행이라 직접 못
    - **날짜 기준** — `last_order_date`·`last_login_date`가 어느 컬럼인지
    - **동의값 해석** — `Y/N`·공란을 동의/미동의로 어떻게 볼지
    - 신뢰도 낮은 매핑 전부
-3. **Phase B 위임** — 확정 매핑 + HITL 확정값 + 고객사명을 `mce-schema-agent`에 넘겨 다시 호출 → 워커가 **빈 RAW DE(원본 컬럼명) 생성 + GCS Import 세팅 + `analysis-guide/<고객사>.md` 자동 생성**을 수행하고 결과를 반환한다.
+3. **Phase B 위임** — 확정 매핑 + HITL 확정값 + 고객사명을 `mce-schema-agent`에 넘겨 다시 호출 → 워커가 **빈 RAW DE(원본 컬럼명) 생성 + `analysis-guide/<고객사>.md` 자동 생성 + CSV 업로드 안내**를 수행하고 결과를 반환한다.
 4. **활성 고객사 전환** — 오케스트레이터가 사용자에게 전환 여부를 확인한 뒤, SKILL.md "활성 고객사" 줄과 CLAUDE.md 라우팅 표기를 `<고객사>`로 바꾼다. (활성 소스 변경은 시스템 전체 영향 → **명시적 단계**, 워커가 임의 전환 금지.)
-5. **데이터 적재 게이트 안내** — 세팅 완료 후 "고객이 GCS 버킷에 업로드 → Import 적재 → 그때 STEP 1 진단 가능(리포트는 요청 시)"임을 보고한다. STEP 0는 적재를 **세팅만** 한다(즉시 실행 안 함).
+5. **데이터 적재 게이트 안내** — 세팅 완료 후 "SFMC UI에서 각 RAW DE에 CSV 업로드(Match by Header Row · Overwrite) → 적재 확인 → 그때 STEP 1 진단 가능(리포트는 요청 시)"임을 보고한다. STEP 0는 **빈 DE와 가이드까지만** 만든다(적재·Import 자동화 안 함).
 
 > RECON_Profile·SEG_*·CP_DIAGNOSIS_AUTOMATION은 STEP 0가 만들지 않는다 — 데이터 적재 후 **STEP 1이 가이드를 읽어 자동 부트스트랩**한다([`reference/analysis-guide/_common.md`](reference/analysis-guide/_common.md) §6).
 > 🚫 **결과만 전달**: Phase A/B 위임·DE 생성 사이에 진행 멘트를 넣지 않는다(전역 규칙). 노출은 ① HITL 질문 ② 활성 전환 확인 ③ 최종 결과 ④ 오류뿐.
