@@ -1,0 +1,28 @@
+{
+  "_comment": "브랜드 킷 예시(중립 샘플) — 이메일 생성의 단일 진실(SSOT). 이 값들만으로 고정 템플릿(_master.html)이 렌더된다. 신규 고객사는 이 파일을 <고객사>.json 으로 복제해 실제 값으로 채우고, _template-guide.md '활성 고객사' 줄을 그 파일명으로 바꾼다. 추출 방법은 _template-guide.md 참조.",
+  "brand_name": "<브랜드명>",
+  "logo_url": "<로고 이미지 절대 URL — 고객사 공식 사이트에서 추출>",
+  "logo_width": 150,
+  "colors": {
+    "accent": "#1d4ed8",
+    "accent_bg": "#eaf1fd",
+    "header_bg": "#ffffff",
+    "header_text": "#191d2b",
+    "text": "#191d2b",
+    "muted": "#767676",
+    "page_bg": "#f4f4f4"
+  },
+  "font_stack": "NotoSansKR,'Malgun Gothic','맑은 고딕',Dotum,sans-serif",
+  "style": {
+    "button_shape": "square",
+    "btn_radius": 6,
+    "card_radius": 10
+  },
+  "footer": {
+    "company": "<법인명 — 푸터 표기용>",
+    "use_account_address": true
+  },
+  "image_folder_category_id": "<확인필요: sfmc_get_content_categories>",
+  "image_domain": "<이미지 호스팅 도메인>",
+  "source": "<고객사 공식 사이트 URL — 색상·로고 추출 출처>"
+}

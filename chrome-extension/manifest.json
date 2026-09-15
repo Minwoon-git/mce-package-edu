@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "MCE Bot",
+  "version": "1.16.4",
+  "description": "MCE(SFMC) 화면 위에 캠페인 챗봇을 팝업으로 띄웁니다. 로컬 web-bridge 서버(localhost:3456)가 필요합니다.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://localhost:3456/*"],
+  "action": {
+    "default_icon": "fab.png",
+    "default_title": "MCE Bot 켜기/끄기"
+  },
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://mc.exacttarget.com/*",
+        "https://*.exacttarget.com/*",
+        "https://*.marketingcloudapps.com/*"
+      ],
+      "js": ["marked.min.js", "content.js"],
+      "css": ["fonts/fonts.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/*.woff2", "fab.png"],
+      "matches": [
+        "https://*.exacttarget.com/*",
+        "https://*.marketingcloudapps.com/*"
+      ]
+    }
+  ]
+}

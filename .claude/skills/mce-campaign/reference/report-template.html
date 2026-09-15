@@ -1,0 +1,210 @@
+<style>
+  :root{
+    --ground:#FBFBFC; --ink:#161d2e; --slate:#3a4256; --mute:#7c8498;
+    --line:#e7e9ef; --accent:#0e8c7f; --accent-soft:#e7f4f1; --dark:#141b2e;
+    --card:#f7f8fb;
+    --sans:-apple-system,BlinkMacSystemFont,"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--ground);color:var(--slate);
+    font-family:var(--sans);font-size:15.5px;line-height:1.72;
+    -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;}
+  .wrap{max-width:880px;margin:0 auto;padding:0 28px;}
+  .num{font-variant-numeric:tabular-nums;}
+
+  /* masthead */
+  .mast{background:var(--dark);color:#fff;padding:56px 0 46px;}
+  .mast .eyebrow{color:#6fd8c9;font-size:12px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;margin:0 0 16px;}
+  .mast h1{color:#fff;font-size:33px;line-height:1.28;font-weight:700;margin:0;letter-spacing:-.01em;text-wrap:balance;max-width:19ch;}
+  .mast .meta{display:flex;flex-wrap:wrap;gap:26px;margin-top:26px;padding-top:22px;border-top:1px solid rgba(255,255,255,.14);}
+  .mast .meta div{display:flex;flex-direction:column;gap:3px;}
+  .mast .meta .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8b93a8;}
+  .mast .meta .v{font-size:16px;color:#eef0f5;font-weight:600;}
+
+  section{padding:44px 0;border-bottom:1px solid var(--line);}
+  section:last-of-type{border-bottom:none;}
+  .kick{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 10px;}
+  h2{color:var(--ink);font-size:23px;line-height:1.35;font-weight:700;margin:0 0 18px;letter-spacing:-.01em;text-wrap:balance;}
+  h3{color:var(--ink);font-size:17px;font-weight:700;margin:0 0 6px;}
+  p{margin:0 0 14px;max-width:66ch;}
+  strong{color:var(--ink);font-weight:700;}
+  .lead{font-size:17px;line-height:1.7;color:var(--slate);max-width:64ch;}
+  .lead b{color:var(--ink);}
+
+  /* key figures */
+  .figs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:26px 0 4px;}
+  .fig{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 20px 18px;}
+  .fig .big{font-size:38px;font-weight:700;color:var(--ink);line-height:1;letter-spacing:-.02em;}
+  .fig .big .u{font-size:20px;color:var(--accent);margin-left:2px;}
+  .fig .lbl{font-size:13px;color:var(--mute);margin-top:9px;}
+
+  /* table */
+  .tbl-wrap{overflow-x:auto;margin:6px 0 4px;}
+  table{width:100%;border-collapse:collapse;font-size:14.5px;}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  thead th{background:var(--ink);color:#fff;font-weight:600;font-size:13px;letter-spacing:.02em;}
+  thead th.r,td.r{text-align:right;}
+  tbody tr:nth-child(even){background:#fafbfc;}
+  td.name{color:var(--ink);font-weight:600;}
+  tr.total td{border-top:2px solid var(--ink);font-weight:700;color:var(--ink);background:#fff;}
+  .rank{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
+    font-size:12px;font-weight:700;align-items:center;justify-content:center;}
+  .rank.dim{background:#eef0f4;color:var(--mute);}
+
+  /* bar chart */
+  .bars{margin:8px 0 2px;display:flex;flex-direction:column;gap:11px;}
+  .bar-row{display:grid;grid-template-columns:120px 1fr 74px;align-items:center;gap:12px;}
+  .bar-row .bl{font-size:13px;color:var(--slate);}
+  .bar-track{background:#eef0f4;border-radius:5px;height:20px;overflow:hidden;}
+  .bar-fill{height:100%;background:var(--ink);border-radius:5px;}
+  .bar-fill.a{background:var(--accent);}
+  .bar-row .bv{font-size:13px;text-align:right;color:var(--ink);font-weight:600;}
+
+  .note{background:var(--accent-soft);border-radius:10px;padding:15px 18px;margin:20px 0 0;font-size:14.5px;color:#154a44;max-width:none;}
+  .note b{color:#0b3f39;}
+
+  .grid2{display:grid;grid-template-columns:150px 1fr;gap:2px 18px;margin:2px 0 16px;font-size:14.5px;}
+  .grid2 dt{color:var(--mute);padding:5px 0;}
+  .grid2 dd{margin:0;padding:5px 0;color:var(--slate);}
+  .grid2 dd b{color:var(--ink);}
+  .camp{padding:22px 0;border-bottom:1px dashed var(--line);}
+  .camp:last-child{border-bottom:none;padding-bottom:2px;}
+  .camp .hd{display:flex;align-items:baseline;gap:11px;margin-bottom:8px;}
+  .camp .hd .r{font-size:13px;font-weight:700;color:var(--accent);}
+  .impact{display:inline-block;background:var(--accent-soft);color:#0b3f39;font-weight:600;font-size:13.5px;
+    padding:4px 11px;border-radius:6px;}
+
+  ol.steps{list-style:none;counter-reset:s;margin:8px 0 0;padding:0;}
+  ol.steps li{counter-increment:s;position:relative;padding:14px 0 14px 52px;border-bottom:1px solid var(--line);}
+  ol.steps li:last-child{border-bottom:none;}
+  ol.steps li::before{content:counter(s,decimal-leading-zero);position:absolute;left:0;top:14px;
+    font-size:16px;font-weight:700;color:var(--accent);}
+  ol.steps h3{margin-bottom:2px;}
+  ol.steps p{margin:0;font-size:14px;color:var(--mute);}
+
+  footer{padding:30px 0 60px;color:var(--mute);font-size:12.5px;line-height:1.7;}
+  footer b{color:var(--slate);}
+
+  @media (max-width:640px){
+    .figs{grid-template-columns:1fr;}
+    .grid2{grid-template-columns:1fr;gap:0;}
+    .bar-row{grid-template-columns:96px 1fr 64px;}
+    .mast h1{font-size:26px;}
+  }
+</style>
+
+<header class="mast">
+  <div class="wrap">
+    <p class="eyebrow">데이터 기반 분석</p>
+    <h1>고객 데이터 분석 &amp; 캠페인 추천 리포트</h1>
+    <div class="meta">
+      <div><span class="k">모수</span><span class="v num">100,000명</span></div>
+      <div><span class="k">기준일</span><span class="v num">2026.07.01</span></div>
+      <div><span class="k">업종</span><span class="v">일반 이커머스</span></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <p class="kick">01 · 핵심 요약</p>
+    <h2>구매 기반은 견고하나, 매출은 재구매·이탈·휴면에서 새고 있습니다</h2>
+    <p class="lead">전체 10만 명 중 <b>구매자는 85,059명(85.1%)</b>으로 활성 기반은 탄탄합니다. 그러나 그 구매자의 <b>64.7%가 한 번 사고 재구매가 없는 1회성</b>이고, <b>31.8%는 마지막 주문 후 90일이 지난 이탈위험</b> 구간입니다. 즉 신규 획득보다 <b>이미 확보한 고객의 다음 구매를 살리는 것</b>이 가장 큰 성장 레버입니다.</p>
+    <div class="figs">
+      <div class="fig"><div class="big num">64.7<span class="u">%</span></div><div class="lbl">1회성 구매자 · 55,034명<br>(구매자 대비 최대 비중)</div></div>
+      <div class="fig"><div class="big num">31.8<span class="u">%</span></div><div class="lbl">이탈위험 · 27,047명<br>(주문 90일+ 경과 구매자)</div></div>
+      <div class="fig"><div class="big num">85.1<span class="u">%</span></div><div class="lbl">구매자 · 85,059명<br>(활성 구매 기반)</div></div>
+    </div>
+    <p style="margin-top:22px">권장 우선순위는 <strong>① 2차 구매 유도 → ② 이탈 방어 → ③ 휴면 재활성</strong> 순이며, 근거와 대상 규모는 아래에서 상술합니다.</p>
+  </section>
+
+  <section>
+    <p class="kick">02 · 고객 데이터 진단</p>
+    <h2>세그먼트별 규모 — 재구매·이탈·휴면이 상위 세 축</h2>
+    <div class="bars">
+      <div class="bar-row"><span class="bl">1회성 구매자</span><div class="bar-track"><div class="bar-fill a" style="width:100%"></div></div><span class="bv num">55,034</span></div>
+      <div class="bar-row"><span class="bl">휴면</span><div class="bar-track"><div class="bar-fill" style="width:57.2%"></div></div><span class="bv num">31,488</span></div>
+      <div class="bar-row"><span class="bl">이탈위험</span><div class="bar-track"><div class="bar-fill" style="width:49.1%"></div></div><span class="bv num">27,047</span></div>
+      <div class="bar-row"><span class="bl">미동의</span><div class="bar-track"><div class="bar-fill" style="width:36.1%"></div></div><span class="bv num">19,893</span></div>
+      <div class="bar-row"><span class="bl">장바구니 이탈</span><div class="bar-track"><div class="bar-fill" style="width:33.0%"></div></div><span class="bv num">18,149</span></div>
+      <div class="bar-row"><span class="bl">첫구매 미전환</span><div class="bar-track"><div class="bar-fill" style="width:27.1%"></div></div><span class="bv num">14,941</span></div>
+    </div>
+
+    <div class="tbl-wrap" style="margin-top:26px">
+      <table>
+        <thead><tr><th>지표</th><th class="r">인원</th><th class="r">비율</th><th>정의</th></tr></thead>
+        <tbody>
+          <tr><td class="name">1회성 구매자</td><td class="r num">55,034</td><td class="r num">64.7%*</td><td>주문이 정확히 1회</td></tr>
+          <tr><td class="name">이탈위험</td><td class="r num">27,047</td><td class="r num">31.8%*</td><td>구매자 중 마지막 주문 90일+</td></tr>
+          <tr><td class="name">휴면</td><td class="r num">31,488</td><td class="r num">31.5%</td><td>마지막 로그인 90일+</td></tr>
+          <tr><td class="name">미동의</td><td class="r num">19,893</td><td class="r num">19.9%</td><td>이메일·SMS 모두 미동의</td></tr>
+          <tr><td class="name">장바구니 이탈</td><td class="r num">18,149</td><td class="r num">18.1%</td><td>담아두고 미결제</td></tr>
+          <tr><td class="name">첫구매 미전환</td><td class="r num">14,941</td><td class="r num">14.9%</td><td>가입 후 주문 0</td></tr>
+          <tr class="total"><td>모수 (전체)</td><td class="r num">100,000</td><td class="r">—</td><td>구매자 85,059명 포함</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note"><b>해석.</b> 구매 기반(85%)은 견고하지만 그 안에서 <b>1회성 65% · 이탈위험 32%</b>가 동시에 높다는 것은, 유입은 되는데 <b>두 번째 구매로 넘기는 힘이 약하다</b>는 신호입니다. 따라서 신규 획득 캠페인보다 <b>재구매 전환·이탈 방어</b>가 매출 기여가 크고, 휴면(31.5%)까지 더해 재방문 관리가 핵심 과제입니다.</div>
+  </section>
+
+  <section>
+    <p class="kick">03 · 기회 우선순위</p>
+    <h2>먼저 공략할 곳 — 대상 규모와 기대 임팩트 기준</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th style="width:44px"></th><th>캠페인</th><th>근거</th><th class="r">대상</th><th>기대 임팩트</th></tr></thead>
+        <tbody>
+          <tr><td><span class="rank">1</span></td><td class="name">2차 구매 유도</td><td>1회성 64.7%</td><td class="r num">55,034</td><td>재구매율·LTV 상승 (최대 모수)</td></tr>
+          <tr><td><span class="rank">2</span></td><td class="name">이탈 고객 재구매 유도</td><td>이탈위험 31.8%</td><td class="r num">27,047</td><td>이탈 방어·매출 회복</td></tr>
+          <tr><td><span class="rank">3</span></td><td class="name">휴면 고객 재활성화</td><td>휴면 31.5%</td><td class="r num">31,488</td><td>재방문 회복·잠재 이탈 차단</td></tr>
+          <tr><td><span class="rank dim">4</span></td><td class="name">장바구니 리마인더</td><td>장바구니 18.1%</td><td class="r num">18,149</td><td>결제 완주·단기 전환</td></tr>
+          <tr><td><span class="rank dim">5</span></td><td class="name">신규 첫구매 유도</td><td>미전환 14.9%</td><td class="r num">14,941</td><td>첫 전환·신규 활성화</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:18px">상위 3개(2차 구매·이탈·휴면)만으로 <strong>연인원 11만 건 이상</strong>의 접점이 나오며, 모두 <strong>이미 확보한 고객</strong>을 대상으로 하므로 신규 획득 대비 전환 효율이 높습니다. 미동의 2만 명(19.9%)은 도달 채널이 없어 마케팅 캠페인 대상에서 제외되며, 동의 확보는 가입·주문 등 정보성 접점에서 별도 처리합니다.</p>
+  </section>
+
+  <section>
+    <p class="kick">04 · 핵심 캠페인 상세</p>
+    <h2>상위 3개 캠페인 실행 설계</h2>
+
+    <div class="camp">
+      <div class="hd"><span class="r">01</span><h3>2차 구매 유도</h3></div>
+      <dl class="grid2">
+        <dt>대상</dt><dd><b class="num">55,034명</b> · 1회성 구매자</dd>
+        <dt>채널</dt><dd><b>이메일 · 알림톡</b> (email_consent / sms_consent 필터)</dd>
+        <dt>메시지 방향</dt><dd>첫 구매 연관·재입고 추천, 재구매 인센티브(쿠폰·적립)</dd>
+      </dl>
+      <span class="impact">기대효과 — 재구매율↑ · 고객당 생애가치(LTV)↑</span>
+    </div>
+
+    <div class="camp">
+      <div class="hd"><span class="r">02</span><h3>이탈 고객 재구매 유도</h3></div>
+      <dl class="grid2">
+        <dt>대상</dt><dd><b class="num">27,047명</b> · 주문 90일+ 경과 구매자</dd>
+        <dt>채널</dt><dd><b>이메일 + 복귀 쿠폰</b></dd>
+        <dt>메시지 방향</dt><dd>개인화 리마인드, 복귀 한정 혜택으로 재구매 유도</dd>
+      </dl>
+      <span class="impact">기대효과 — 이탈 방어 · 휴면 전환 전 매출 회복</span>
+    </div>
+
+    <div class="camp">
+      <div class="hd"><span class="r">03</span><h3>휴면 고객 재활성화</h3></div>
+      <dl class="grid2">
+        <dt>대상</dt><dd><b class="num">31,488명</b> · 로그인 90일+ 미접속</dd>
+        <dt>채널</dt><dd><b>이메일 · 알림톡</b></dd>
+        <dt>메시지 방향</dt><dd>관심 카테고리 기반 재방문 유도, 복귀 트리거</dd>
+      </dl>
+      <span class="impact">기대효과 — 재방문·재활성화율 개선</span>
+    </div>
+  </section>
+
+  <footer>
+    <b>방법론.</b> 마스터 고객 데이터(1행=1고객)를 세그먼트별로 집계해 산출. 데이터 기준일 2026-07-01 재집계.<br>
+    * 1회성 구매자·이탈위험 비율은 <b>구매자(85,059명)</b> 대비, 그 외 지표는 <b>전체(100,000명)</b> 대비. 기준일수(휴면·이탈 90일, 신규 30일)는 조정 가능.
+  </footer>
+
+</main>

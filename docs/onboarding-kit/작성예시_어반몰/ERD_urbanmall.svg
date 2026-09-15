@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="640" viewBox="0 0 1180 640" font-family="Malgun Gothic, sans-serif">
+  <defs>
+    <marker id="crow" markerWidth="14" markerHeight="14" refX="12" refY="6" orient="auto">
+      <path d="M12,6 L2,1 M12,6 L2,6 M12,6 L2,11" stroke="#5B6B8C" stroke-width="1.4" fill="none"/>
+    </marker>
+  </defs>
+  <rect width="1180" height="640" fill="#FFFFFF"/>
+  <text x="40" y="42" font-size="20" font-weight="bold" fill="#1F3864">UrbanMall ERD — 회원 / 주문 / 상품 / 쿠폰</text>
+  <text x="40" y="64" font-size="12" fill="#767676">고객사 제공 스키마 관계도 예시 · PK=기본키, FK=외래키 · 선 = 1:N 관계</text>
+
+  <!-- 관계선 (박스 아래 레이어) -->
+  <path d="M290,190 L430,140" stroke="#5B6B8C" stroke-width="1.6" fill="none" marker-start="url(#crow)"/>
+  <text x="352" y="152" font-size="11" fill="#5B6B8C">MBR_ID 1:N</text>
+  <path d="M290,330 L430,390" stroke="#5B6B8C" stroke-width="1.6" fill="none" marker-start="url(#crow)"/>
+  <text x="330" y="378" font-size="11" fill="#5B6B8C">MBR_ID 1:N</text>
+  <path d="M670,140 L800,140" stroke="#5B6B8C" stroke-width="1.6" fill="none" marker-start="url(#crow)"/>
+  <text x="700" y="130" font-size="11" fill="#5B6B8C">ORDER_ID 1:N</text>
+  <path d="M925,196 L925,320" stroke="#5B6B8C" stroke-width="1.6" fill="none" marker-start="url(#crow)"/>
+  <text x="935" y="262" font-size="11" fill="#5B6B8C">ITEM_CD 1:N</text>
+
+  <!-- MEMBER_INFO -->
+  <g>
+    <rect x="40" y="100" width="250" height="300" rx="6" fill="#F7F9FC" stroke="#1F3864" stroke-width="1.5"/>
+    <rect x="40" y="100" width="250" height="26" rx="6" fill="#1F3864"/>
+    <text x="165" y="118" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle">MEMBER_INFO (회원)</text>
+    <text x="52" y="145" font-size="11.5" font-weight="bold" fill="#1F3864">MBR_ID  BIGINT  [PK]</text>
+    <text x="52" y="163" font-size="11.5" fill="#333">MBR_EMAIL  VARCHAR</text>
+    <text x="52" y="181" font-size="11.5" fill="#333">HP_NO  VARCHAR</text>
+    <text x="52" y="199" font-size="11.5" fill="#333">BIRTH_YMD  DATE</text>
+    <text x="52" y="217" font-size="11.5" fill="#333">MBR_GRD  VARCHAR (VIP/GOLD/BASIC)</text>
+    <text x="52" y="235" font-size="11.5" fill="#333">ADDR_CITY  VARCHAR</text>
+    <text x="52" y="253" font-size="11.5" fill="#333">REG_DTM  DATETIME</text>
+    <text x="52" y="271" font-size="11.5" fill="#333">LST_LOGIN_DTM  DATETIME</text>
+    <text x="52" y="289" font-size="11.5" fill="#333">EML_AGREE_YN  CHAR(1)</text>
+    <text x="52" y="307" font-size="11.5" fill="#333">SMS_AGREE_YN  CHAR(1)</text>
+    <text x="52" y="325" font-size="11.5" fill="#333">BASKET_YN  CHAR(1)</text>
+    <text x="52" y="343" font-size="11.5" fill="#333">BASKET_AMT  DECIMAL</text>
+    <text x="52" y="361" font-size="11.5" fill="#333">MILEAGE  DECIMAL</text>
+    <text x="52" y="379" font-size="11.5" fill="#333">MILEAGE_EXP_YMD  DATE</text>
+  </g>
+
+  <!-- ORDER_MST -->
+  <g>
+    <rect x="430" y="90" width="240" height="126" rx="6" fill="#F7F9FC" stroke="#1F3864" stroke-width="1.5"/>
+    <rect x="430" y="90" width="240" height="26" rx="6" fill="#1F3864"/>
+    <text x="550" y="108" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle">ORDER_MST (주문)</text>
+    <text x="442" y="135" font-size="11.5" font-weight="bold" fill="#1F3864">ORDER_ID  VARCHAR  [PK]</text>
+    <text x="442" y="153" font-size="11.5" font-weight="bold" fill="#8A5A00">MBR_ID  BIGINT  [FK→MEMBER_INFO]</text>
+    <text x="442" y="171" font-size="11.5" fill="#333">ORDER_DTM  DATETIME</text>
+    <text x="442" y="189" font-size="11.5" fill="#333">PAY_AMT  DECIMAL (실결제액)</text>
+    <text x="442" y="207" font-size="11.5" fill="#333">ORDER_STATUS  VARCHAR (상태코드)</text>
+  </g>
+
+  <!-- ORDER_ITEM -->
+  <g>
+    <rect x="800" y="90" width="250" height="126" rx="6" fill="#F7F9FC" stroke="#1F3864" stroke-width="1.5"/>
+    <rect x="800" y="90" width="250" height="26" rx="6" fill="#1F3864"/>
+    <text x="925" y="108" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle">ORDER_ITEM (주문상세)</text>
+    <text x="812" y="135" font-size="11.5" font-weight="bold" fill="#1F3864">ORDER_ITEM_SEQ  BIGINT  [PK]</text>
+    <text x="812" y="153" font-size="11.5" font-weight="bold" fill="#8A5A00">ORDER_ID  VARCHAR  [FK→ORDER_MST]</text>
+    <text x="812" y="171" font-size="11.5" font-weight="bold" fill="#8A5A00">ITEM_CD  VARCHAR  [FK→ITEM_MST]</text>
+    <text x="812" y="189" font-size="11.5" fill="#333">ORD_QTY  INT</text>
+    <text x="812" y="207" font-size="11.5" fill="#333">UNIT_PRC  DECIMAL (판매단가)</text>
+  </g>
+
+  <!-- ITEM_MST -->
+  <g>
+    <rect x="800" y="320" width="250" height="108" rx="6" fill="#F7F9FC" stroke="#1F3864" stroke-width="1.5"/>
+    <rect x="800" y="320" width="250" height="26" rx="6" fill="#1F3864"/>
+    <text x="925" y="338" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle">ITEM_MST (상품)</text>
+    <text x="812" y="365" font-size="11.5" font-weight="bold" fill="#1F3864">ITEM_CD  VARCHAR  [PK]</text>
+    <text x="812" y="383" font-size="11.5" fill="#333">ITEM_NM  VARCHAR</text>
+    <text x="812" y="401" font-size="11.5" fill="#333">CAT_NM  VARCHAR (카테고리명)</text>
+    <text x="812" y="419" font-size="11.5" fill="#333">SELL_PRC  DECIMAL</text>
+  </g>
+
+  <!-- COUPON_ISSUE -->
+  <g>
+    <rect x="430" y="340" width="240" height="126" rx="6" fill="#F7F9FC" stroke="#1F3864" stroke-width="1.5"/>
+    <rect x="430" y="340" width="240" height="26" rx="6" fill="#1F3864"/>
+    <text x="550" y="358" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle">COUPON_ISSUE (쿠폰)</text>
+    <text x="442" y="385" font-size="11.5" font-weight="bold" fill="#1F3864">COUPON_ID  VARCHAR  [PK]</text>
+    <text x="442" y="403" font-size="11.5" font-weight="bold" fill="#8A5A00">MBR_ID  BIGINT  [FK→MEMBER_INFO]</text>
+    <text x="442" y="421" font-size="11.5" fill="#333">ISSUE_YMD  DATE</text>
+    <text x="442" y="439" font-size="11.5" fill="#333">EXPIRE_YMD  DATE</text>
+    <text x="442" y="457" font-size="11.5" fill="#333">USED_YN  CHAR(1)</text>
+  </g>
+
+  <text x="40" y="560" font-size="12" fill="#767676">관계: MEMBER_INFO 1:N ORDER_MST · ORDER_MST 1:N ORDER_ITEM · ITEM_MST 1:N ORDER_ITEM · MEMBER_INFO 1:N COUPON_ISSUE</text>
+  <text x="40" y="580" font-size="12" fill="#767676">Contact Key(전 테이블 조인키) = MBR_ID</text>
+  <text x="40" y="600" font-size="12" fill="#767676">코드값: ORDER_STATUS = COMPLETE(구매확정)/CANCELED(취소)/RETURNED(반품) · CAT_NM = 상의/하의/아우터/신발/액세서리 · *_YN = Y/N</text>
+</svg>

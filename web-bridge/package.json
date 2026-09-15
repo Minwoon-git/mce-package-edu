@@ -1,0 +1,14 @@
+{
+  "name": "mce-web-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "웹 채팅 UI <-> 로컬 Claude Code 브릿지 (MCE 캠페인 워크플로우)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2"
+  }
+}

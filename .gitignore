@@ -1,0 +1,26 @@
+node_modules/
+.env
+*.log
+
+# Claude Code 로컬 전용 권한 파일 (PC마다 다름 — 추적 안 함)
+.claude/settings.local.json
+
+# MCP 서버 엔드포인트 (테넌트별 URL — PC/계정마다 다름, 추적 안 함)
+.mcp.json
+
+# 대용량 샘플/테스트 데이터 (import용 — 추적 안 함)
+sample_customer_profile_*.csv
+
+# 생성된 리포트 산출물 (per-run 출력 — 템플릿은 reference/report-template.html)
+reports/*.html
+reports/*.pptx
+reports/*.pdf
+
+# 웹 브릿지 계정 게이트 설정 (테넌트별 — PC마다 다름, 추적 안 함)
+web-bridge/config.json
+
+# 에이전트 런타임 메모리 (BU/테넌트 ID·객체 ID 포함 — PC/계정마다 다름, 추적 안 함)
+.claude/agent-memory/
+
+# 리포트 per-run 입력 데이터 (진단 실행마다 달라짐 — 산출물과 동일 취급)
+reports/*.json
