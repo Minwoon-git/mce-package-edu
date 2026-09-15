@@ -144,7 +144,6 @@ claude
 - **로컬 권한 파일**: `.claude/settings.local.json`은 PC마다 다른 **로컬 전용 권한 파일**이라 깃 추적에서 제외돼 있습니다. 새 PC에서는 자동 생성되며, 도구 사용을 승인하면서 권한이 다시 누적됩니다. (공유 권한은 추적되는 `.claude/settings.json`에 있음)
 - **옮길 필요 없는 것**: OAuth 토큰(`.credentials.json` — 새 PC에서 `/mcp` 재인증으로 새로 발급), `node_modules`(재설치), `settings.local.json`(자동 재생성)
 - **(선택) 웹 챗봇**: `web-bridge`에서 `npm install` + `autostart-install.cmd` 실행, Chrome `chrome://extensions` → 개발자 모드 → `chrome-extension` 폴더 로드 (상세: [web-bridge/README.md](web-bridge/README.md))
-- **(선택) Slack 봇**: `slack-bridge/.env`에 토큰 2개(`SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`)를 직접 옮겨야 합니다 — `.env`는 깃에 없음 (상세: 아래 **Slack 연동** 절)
 
 > 엔드포인트 URL을 모른다면 아래 **설치 및 연결** 1단계(Installed Package, Public App)부터 진행해 테넌트 ID·Client ID로 URL을 구성하세요.
 
