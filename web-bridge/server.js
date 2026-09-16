@@ -176,9 +176,16 @@ function toolDetail(input) {
 let probeCache = { ts: 0, needsAuth: false };
 let probeInflight = null;
 // 도구 호출 단계에서 인증 오류(리프레시 토큰 만료 등)가 났던 시각 — MCP 연결은 Connected로 보여
-// 프로브가 못 잡는 유형이라, 최근 30분 내 발생했으면 /api/mcp-status가 '인증 필요'로 답해 배너를 띄운다.
-// 재인증(mcp-login) 완료 시 초기화.
+// 프로브가 못 잡는 유형이라, 이 기억이 있으면 /api/mcp-status가 '인증 필요'로 답해 배너를 띄운다.
+// 리프레시 토큰 만료는 저절로 낫지 않으므로 파일로 영속화(서버 재시작에도 유지)하고,
+// 재인증(mcp-login) 완료 또는 이후 SFMC 도구 호출이 정상 성공했을 때만 해제한다.
+const AUTH_STATE_FILE = path.join(__dirname, '.auth-state.json');
 let lastToolAuthErr = 0;
+try { lastToolAuthErr = Number(JSON.parse(fs.readFileSync(AUTH_STATE_FILE, 'utf8')).lastToolAuthErr) || 0; } catch { /* 파일 없음 */ }
+function setToolAuthErr(ts) {
+  lastToolAuthErr = ts;
+  try { fs.writeFileSync(AUTH_STATE_FILE, JSON.stringify({ lastToolAuthErr: ts })); } catch { /* 저장 실패는 무시 */ }
+}
 function probeMcpAuth() {
   if (Date.now() - probeCache.ts < 60e3) return Promise.resolve(probeCache.needsAuth);
   if (probeInflight) return probeInflight;
@@ -207,11 +214,10 @@ function probeMcpAuth() {
 }
 
 // SFMC 인증 상태 조회 — 확장이 패널을 열 때 상단 인증 배너 표시용으로 호출 (프로브 60초 캐시 재사용).
-// 프로브가 정상이어도 최근 30분 내 도구 호출에서 인증 오류가 났으면 '인증 필요'로 답한다.
+// 프로브가 정상이어도 도구 호출 단계 인증 오류 기억이 남아 있으면 '인증 필요'로 답한다
+// (리프레시 토큰 만료는 재인증 전엔 낫지 않으므로 시간 제한 없이 — 해제는 재인증/정상 호출 성공 시).
 app.get('/api/mcp-status', (_req, res) => {
-  probeMcpAuth().then((needsAuth) =>
-    res.json({ needsAuth: needsAuth || Date.now() - lastToolAuthErr < 30 * 60e3 }),
-  );
+  probeMcpAuth().then((needsAuth) => res.json({ needsAuth: needsAuth || lastToolAuthErr > 0 }));
 });
 
 app.post('/api/chat', (req, res) => {
@@ -229,8 +235,7 @@ app.post('/api/chat', (req, res) => {
     'X-Accel-Buffering': 'no',
   });
 
-  // --dangerously-skip-permissions: 웹 봇은 사람이 "허용"을 못 누르므로 자동 승인이 필요
-  const args = ['-p', '--output-format', 'stream-json', '--verbose', '--dangerously-skip-permissions'];
+  // --dangerously-skip-permissions: 웹 봇은 사람이 "허용"을 못 누르므로 자동 승인이 필요  const args = ['-p', '--output-format', 'stream-json', '--verbose', '--dangerously-skip-permissions'];
   // 챗봇 정책: 저장소 코드/설정/문서를 고쳐달라는 직접 요청은 거부하게 한다.
   // (캠페인 워크플로가 만드는 산출물 — 정의서 xlsx·리포트·저니 이력 등 — 은 예외로 정상 동작)
   // shell:true 스폰은 인자를 자동 인용하지 않으므로 직접 큰따옴표로 감싼다(그래서 영문·ASCII로 작성).
@@ -239,7 +244,10 @@ app.post('/api/chat', (req, res) => {
     'If the user directly asks you to modify, create, or delete source code, configuration, skills, agents, ' +
     'or any other repository files, refuse and tell them to do it in Claude Code on this PC instead. ' +
     'This restriction does NOT apply to files produced by the normal campaign workflows, such as campaign ' +
-    'definition xlsx files, analysis reports, journey history logs, and agent memory - those keep working as usual.';
+    'definition xlsx files, analysis reports, journey history logs, and agent memory - those keep working as usual. ' +
+    'Formatting: replies render in a small chat panel. Use short paragraphs separated by blank lines, and put ' +
+    'each enumerated item (numbered or bulleted) on its own line using markdown lists - never pack many numbered ' +
+    'items into one long paragraph. Prefer markdown tables for metric comparisons.';
   args.push('--append-system-prompt', `"${BOT_POLICY}"`);
   if (sessionId) args.push('--resume', sessionId);
 
@@ -255,6 +263,7 @@ app.post('/api/chat', (req, res) => {
   let stderr = '';
   let buf = '';
   let authErr = false; // SFMC MCP 인증 만료 감지 — 확장이 result와 함께 받아 재인증 버튼을 띄운다
+  let usedSfmc = false; // 이번 요청이 SFMC 도구를 호출했는지 — 성공 시 인증 오류 기억 해제용
 
   // ⚠ init 이벤트의 mcp_servers 상태는 타이밍 경합이라 못 쓴다 — 같은 '인증 필요' 상태에서도
   //   스폰 타이밍에 따라 'needs-auth' 또는 'pending'(연결 중)으로 찍힌다(2026-08-27 실측).
@@ -285,6 +294,8 @@ app.post('/api/chat', (req, res) => {
       } else {
         // 인증 프로브가 아직이면 완료까지 기다렸다가 result를 보낸다 (내부 25초 타임아웃 있음)
         resultPending = probeP.then(() => {
+          // SFMC 도구를 실제로 쓰고 인증 오류 없이 끝났으면, 남아 있던 인증 오류 기억을 해제 (배너 자동 소멸)
+          if (usedSfmc && !authErr && lastToolAuthErr) setToolAuthErr(0);
           const payload = {
             type: 'result',
             text: ev.result ?? '(빈 응답)',
@@ -310,9 +321,10 @@ app.post('/api/chat', (req, res) => {
       // - "session is invalid or access is revoked": MCP 세션 만료
       // - "refresh token is revoked/expired" / "obtain a new refresh token": SFMC 리프레시 토큰 만료
       //   (이 경우 MCP 연결 자체는 Connected라 프로브로는 못 잡는다 — 2026-08-28 실측)
+      if (!usedSfmc && line.includes('mcp__sf-mce-mcp__')) usedSfmc = true; // 이번 요청이 SFMC 도구를 썼는지
       if (!authErr && /(session is invalid or access is revoked|refresh token is (revoked|expired)|obtain a new refresh token)/i.test(line)) {
         authErr = true;
-        lastToolAuthErr = Date.now(); // 패널 재오픈 시 배너 표시용으로 기억
+        setToolAuthErr(Date.now()); // 패널 재오픈 시 배너 표시용으로 기억 (파일 영속)
       }
       try {
         handleEvent(JSON.parse(line));
@@ -395,7 +407,7 @@ app.post('/api/mcp-login', (_req, res) => {
     clearTimeout(timeout);
     mcpLoginProc = null;
     probeCache.ts = 0; // 재인증 직후엔 캐시를 비워 다음 요청이 새 상태를 보게 한다
-    lastToolAuthErr = 0; // 도구 단계 인증 오류 기억도 초기화 (배너 자동 소멸)
+    setToolAuthErr(0); // 도구 단계 인증 오류 기억도 초기화 (배너 자동 소멸)
   };
   child.on('close', done);
   child.on('error', done);

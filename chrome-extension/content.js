@@ -295,8 +295,10 @@
 
     /* ── 마크다운 ── */
     .answer h1, .answer h2, .answer h3 { margin: 11px 0 5px; font-size: 1.04em; letter-spacing: -.2px; }
-    .answer p { margin: 5px 0; }
-    .answer ul, .answer ol { margin: 5px 0; padding-left: 20px; }
+    .answer p { margin: 9px 0; } /* 문단 사이 간격 — 긴 안내가 한 덩어리로 보이지 않게 (v1.16.6) */
+    .answer ul, .answer ol { margin: 7px 0; padding-left: 20px; }
+    .answer li { margin: 3px 0; }
+    .answer li + li { margin-top: 4px; }
     .answer pre { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; overflow-x: auto; font-size: 12px; margin: 7px 0; }
     .answer code { background: var(--soft); border-radius: 5px; padding: 1px 5px; font-size: .88em; }
     .answer pre code { background: none; padding: 0; }
@@ -417,11 +419,21 @@
       overflow: hidden;
     }
     .dtable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-    .dtable th, .dtable td { padding: 8px 11px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .dtable th, .dtable td { padding: 8px 11px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; font-variant-numeric: tabular-nums; vertical-align: middle; }
+    /* 전체화면(와이드)에서는 발송·오픈율·클릭율·바로가기 4개 컬럼이 동일 폭(12%)을 가져 간격이 일정하게 —
+       (기존에는 auto 분배라 바로가기 컬럼만 폭이 달라 간격이 어긋나 보였음) */
+    .panel.wide .dtable th:not(:first-child), .panel.wide .dtable td:not(:first-child) { width: 12%; }
     .dtable th:first-child, .dtable td:first-child { text-align: left; }
     .dtable td:first-child { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+    .panel.wide .dtable td:first-child { max-width: none; } /* 풀화면에서는 이름을 자르지 않고 남는 폭 흡수 */
     .dtable th { background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; }
     .dtable tr:last-child td { border-bottom: none; }
+    /* "바로가기" 컬럼명을 버튼 안 텍스트와 세로선이 맞게 왼쪽으로 (버튼 내부 패딩 10px만큼 보정) */
+    .dtable th:last-child { padding-right: 21px; }
+    /* 저니별 성과 "바로가기" 버튼 → Journey Builder 새 탭 (v1.16.5~) */
+    .dtable .jgo { display: inline-block; padding: 3px 10px; border-radius: 6px; background: var(--soft);
+      color: var(--accent); text-decoration: none; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+    .dtable .jgo:hover { text-decoration: none; filter: brightness(1.08); }
     .ins {
       background: var(--card); border: 1px solid var(--border);
       border-radius: 10px; padding: 11px 13px; margin-bottom: 8px;
@@ -523,7 +535,7 @@
       </div>
       <div class="authbar" hidden>
         <span class="at">🔐 SFMC 인증이 필요합니다 — 인증 전에는 SFMC 작업이 실패합니다</span>
-        <button class="ab" type="button">재인증</button>
+        <button class="ab" type="button">인증</button>
       </div>
       <div class="dropzone" hidden>📎 여기에 놓으면 파일이 첨부됩니다</div>
       <div class="body"></div>
@@ -606,7 +618,8 @@
   }
 
   function renderMd(el, md) {
-    el.innerHTML = marked.parse(md);
+    // breaks: true — 봇 답변의 단일 줄바꿈도 <br>로 살린다 (기본값은 무시되어 문단이 한 덩어리로 붙음)
+    el.innerHTML = marked.parse(md, { breaks: true });
     el.querySelectorAll('a').forEach((a) => {
       if (fileLink(a)) return; // 다운로드 링크는 새 탭 불필요 (Content-Disposition으로 바로 저장)
       a.target = '_blank';
@@ -987,16 +1000,31 @@
     wrap.className = 'dtwrap';
     const tbl = document.createElement('table');
     tbl.className = 'dtable';
-    tbl.innerHTML = '<thead><tr><th>저니</th><th>발송</th><th>오픈율</th><th>클릭율</th></tr></thead><tbody></tbody>';
+    tbl.innerHTML = '<thead><tr><th>저니</th><th>발송</th><th>오픈율</th><th>클릭율</th><th>바로가기</th></tr></thead><tbody></tbody>';
     const tb = tbl.querySelector('tbody');
-    for (const j of (data.journeys || []).slice().sort((a, b) => b.sent - a.sent).slice(0, 12)) {
+    // 발송 많은 순 최대 8개만 노출. 바로가기 버튼은 Journey Builder 새 탭 — 데이터에 id가 있을 때만.
+    // 링크 형식은 journey_history와 동일: <오리진>/cloud/#app/Journey%20Builder/%23<저니ID>/<버전>
+    const jbOrigin = /exacttarget\.com$/.test(location.hostname) ? location.origin : 'https://mc.exacttarget.com';
+    for (const j of (data.journeys || []).slice().sort((a, b) => b.sent - a.sent).slice(0, 8)) {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td></td><td></td><td></td><td></td>';
+      tr.innerHTML = '<td></td><td></td><td></td><td></td><td></td>';
       tr.children[0].textContent = j.name;
       tr.children[0].title = j.name;
       tr.children[1].textContent = fmtN(j.sent);
       tr.children[2].textContent = `${Math.round(rate(j.open, j.sent) * 10) / 10}%`;
       tr.children[3].textContent = `${Math.round(rate(j.click, j.sent) * 10) / 10}%`;
+      if (j.id && !/^FAKE-/i.test(j.id)) {
+        const a = document.createElement('a');
+        a.className = 'jgo';
+        a.textContent = '이동 ↗';
+        a.title = 'Journey Builder에서 열기';
+        a.href = `${jbOrigin}/cloud/#app/Journey%20Builder/%23${j.id}/${j.version || 1}`;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        tr.children[4].appendChild(a);
+      } else {
+        tr.children[4].textContent = '—'; // 저니 외 발송 등 이동할 저니가 없는 항목
+      }
       tb.appendChild(tr);
     }
     wrap.appendChild(tbl);
@@ -1183,7 +1211,7 @@
       clearInterval(authPoll);
       authPoll = null;
       authbarBtn.disabled = false;
-      authbarBtn.textContent = '재인증';
+      authbarBtn.textContent = '인증';
     }
   }
   function checkAuth() {
@@ -1217,7 +1245,7 @@
         pollAuthUntilOk();
       } else {
         authbarBtn.disabled = false;
-        authbarBtn.textContent = '재인증';
+        authbarBtn.textContent = '인증';
       }
     });
   });
@@ -1229,7 +1257,7 @@
     box.className = 'reauth';
     box.innerHTML =
       '<div class="rmsg">SFMC 인증이 만료된 것 같습니다. 재인증 후 요청을 다시 보내주세요.</div>' +
-      '<button class="rbtn">🔐 SFMC 재인증</button>';
+      '<button class="rbtn">🔐 SFMC 인증</button>';
     const btn = box.querySelector('.rbtn');
     const msg = box.querySelector('.rmsg');
     btn.addEventListener('click', () => {
@@ -1243,7 +1271,7 @@
           pollAuthUntilOk(); // 완료되면 상단 인증 배너도 자동으로 사라진다
         } else {
           btn.disabled = false;
-          btn.textContent = '🔐 SFMC 재인증';
+          btn.textContent = '🔐 SFMC 인증';
           msg.textContent = '서버에 연결하지 못했습니다. web-bridge 상태를 확인해주세요.';
         }
       });

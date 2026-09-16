@@ -43,7 +43,7 @@ Claude Code CLI (cwd = 프로젝트 루트 → CLAUDE.md·스킬·에이전트·
   - `sessionId`를 주면 `--resume`으로 대화 맥락을 이어간다
 - `POST /api/stop` — `{ chatId }` → 실행 중인 요청 프로세스 종료 (Windows에서는 `taskkill /T /F`로 프로세스 트리 전체 종료). 중단된 요청은 `result` 이벤트로 "⏹ 요청을 중단했습니다."를 내려보냄
 - `GET /api/mcp-status` — SFMC MCP 인증 상태 `{ needsAuth }`. `claude mcp get`으로 확정 판정(60초 캐시, 모델 호출 없음). 확장이 패널을 열 때 상단 인증 배너 표시용으로 호출
-- `POST /api/mcp-login` — **SFMC MCP 재인증**. `claude mcp login sf-mce-mcp`를 실행해 이 PC 기본 브라우저에 OAuth 로그인 창을 연다. 챗봇 답변에서 SFMC 세션 만료("session is invalid / access revoked")가 감지되면 확장이 말풍선에 "🔐 SFMC 재인증" 버튼을 자동 표시하고, 그 버튼이 이 엔드포인트를 호출한다. 완료 후 다음 요청부터 적용(브릿지 재시작 불필요), 진행 중 중복 호출은 거부, 3분 미완료 시 자동 정리
+- `POST /api/mcp-login` — **SFMC MCP 재인증**. `claude mcp login sf-mce-mcp`를 실행해 이 PC 기본 브라우저에 OAuth 로그인 창을 연다. 챗봇 답변에서 SFMC 세션 만료("session is invalid / access revoked")가 감지되면 확장이 말풍선에 "🔐 SFMC 인증" 버튼을 자동 표시하고, 그 버튼이 이 엔드포인트를 호출한다. 완료 후 다음 요청부터 적용(브릿지 재시작 불필요), 진행 중 중복 호출은 거부, 3분 미완료 시 자동 정리
 - `GET /api/result?chatId=` — `{ result: { text, sessionId, cost, ts } | null, running }` — 스트림 도중 연결이 끊긴 클라이언트가 결과를 회수(폴링)하는 용도. 결과는 1시간 보관. 확장은 포트가 결과 없이 끊기면 자동으로 이 엔드포인트를 폴링해 답변을 이어받음
 - `GET /dashboard` — **캠페인 성과 대시보드** (정적 HTML, 챗봇 헤더 📊 버튼으로 열림). KPI 타일(전기간 대비)·일별 발송량·오픈/클릭률 추이·저니별 성과(막대+표)·인사이트/다음 캠페인 제안 카드, 기간 필터(7/14/30일 + 날짜 직접 지정), 다크모드 토글, 인쇄(Ctrl+P) 최적화. 고객사별 테마: 데이터 JSON의 `theme` 객체가 CSS 변수를 덮어씀
 - `POST /api/journey-xlsx` — 저니별 성과를 **서식 입힌 엑셀(xlsx)** 로 생성 (대시보드 "⬇ 엑셀" 버튼). 타이틀·헤더 색·퍼센트 서식·줄무늬·합계행·자동필터·고정 헤더 포함 (exceljs)
@@ -62,6 +62,7 @@ Claude Code CLI (cwd = 프로젝트 루트 → CLAUDE.md·스킬·에이전트·
 3. **24시간 경과(또는 파일 없음)면** 기존 파일을 즉시 서빙하되, 백그라운드로 갱신을 1회 트리거:
    - `claude -p "SENDLOG_History DE를 일별·저니별로 집계해 reports\dashboard-data.json을 갱신해줘"` 헤드리스 실행 (기존 `/api/chat`과 같은 spawn 패턴, `--dangerously-skip-permissions`)
    - JSON 포맷은 기존 파일과 동일 유지: `{ generatedAt, source: "sendlog_history", daily[], journeys[], insights[] }`
+     (journeys[] 항목에 `id`(JourneyID)·`version`을 포함하면 챗봇 대시보드에서 저니 이름이 Journey Builder 링크가 됨 — 선택 필드, 없으면 일반 텍스트)
    - **중복 실행 잠금** 필수: 갱신 실행 중 플래그를 두고, 진행 중이면 재트리거하지 않음 (동시에 여러 탭이 열려도 1회만)
 4. 갱신 완료 후의 요청부터 새 숫자가 보임 (화면에는 "갱신 N시간 전" 표시로 상태 확인 가능)
 
