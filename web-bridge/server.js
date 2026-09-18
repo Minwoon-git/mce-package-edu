@@ -3,6 +3,7 @@
 // 웹에서는 stream-json + SSE로 진행 상황(도구 실행·중간 텍스트)을 실시간으로 내려보낸다.
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const express = require('express');
 const { spawn } = require('child_process');
 
@@ -213,10 +214,91 @@ function probeMcpAuth() {
   return probeInflight;
 }
 
+// SFMC OAuth 토큰 유효성 실호출 확인 (헬스체크) — 프로브의 사각지대를 메운다.
+// `claude mcp get`은 MCP 핸드셰이크만 보므로, SFMC 리프레시 토큰이 만료돼도 "Connected"로 보인다.
+// 그래서 실제 SFMC 읽기 호출(tokenContext)을 1번 돌려 토큰이 살아 있는지 확인하고,
+// 만료면 setToolAuthErr()로 기억시켜 챗봇을 여는 즉시 재인증 배너가 뜨게 한다.
+//   (A) 브릿지 기동 시 1회   — PC 부팅 → 자동시작 시점. "PC 켜고 → MC 로그인 → 챗봇" 시나리오를 덮는다
+//   (B) /api/mcp-status 에서 캐시(6시간)가 만료됐을 때 백그라운드 1회 — 근무 중 만료도 잡는다
+// 💰 비용: 이 확인은 모델 호출이라 토큰을 쓴다. 그래서
+//   · 프로젝트 루트가 아닌 임시 폴더에서 스폰 → CLAUDE.md·스킬·에이전트가 로드되지 않는다
+//   · 모델을 haiku로 고정 (실패 시 기본 모델로 1회만 재시도)
+//   · 이미 '인증 필요' 상태(배너 표시 중)면 건너뛴다 — 이미 아는 사실을 다시 확인하지 않는다
+//   · 채팅에서 SFMC 도구가 정상 성공하면 그 사실로 캐시를 갱신 → 활발히 쓰는 동안은 추가 호출 0
+// ⚠ 오탐 방지: 타임아웃·CLI 오류 등 '판정 불가'는 정상으로 간주한다. 멀쩡한데 배너가 뜨는 게 더 나쁘다.
+const AUTH_ERR_RE = /(session is invalid or access is revoked|refresh token is (revoked|expired)|obtain a new refresh token)/i;
+const HEALTH_TTL = 6 * 3600e3; // 6시간
+const HEALTH_FILE = path.join(__dirname, '.auth-health.json');
+const HEALTH_PROMPT =
+  'Call the tool mcp__sf-mce-mcp__sfmc_rest_get with path /platform/v1/tokenContext. ' +
+  'If the call succeeds, reply with exactly SFMC_OK and nothing else. ' +
+  'If it fails, reply with the exact error message. Do not call any other tool.';
+let healthTs = 0;
+try { healthTs = Number(JSON.parse(fs.readFileSync(HEALTH_FILE, 'utf8')).ts) || 0; } catch { /* 파일 없음 */ }
+let healthInflight = null;
+function markHealthy(ts) {
+  healthTs = ts;
+  try { fs.writeFileSync(HEALTH_FILE, JSON.stringify({ ts })); } catch { /* 저장 실패는 무시 */ }
+}
+
+// 실호출 1회. 반환: 'expired' | 'ok' | 'unknown'
+function runHealthProbe(useHaiku) {
+  return new Promise((resolve) => {
+    let out = '';
+    let done = false;
+    const once = (v) => { if (!done) { done = true; resolve(v); } };
+    try {
+      // shell:true 스폰은 인자를 자동 인용하지 않으므로 프롬프트를 직접 큰따옴표로 감싼다(그래서 ASCII로 작성).
+      const args = ['-p', `"${HEALTH_PROMPT}"`, '--dangerously-skip-permissions'];
+      if (useHaiku) args.push('--model', 'haiku');
+      // cwd = 임시 폴더: 프로젝트 컨텍스트(CLAUDE.md·스킬)를 로드하지 않게 한다.
+      // MCP는 사용자 전역(-s user)으로 등록돼 있어 어느 폴더에서든 붙는다.
+      const p = spawn('claude', args, { cwd: os.tmpdir(), shell: true });
+      p.stdout.on('data', (d) => (out += d.toString()));
+      p.stderr.on('data', (d) => (out += d.toString()));
+      p.on('close', () => once(AUTH_ERR_RE.test(out) ? 'expired' : /SFMC_OK/.test(out) ? 'ok' : 'unknown'));
+      p.on('error', () => once('unknown'));
+      setTimeout(() => { once('unknown'); try { killTree(p); } catch { /* 이미 종료 */ } }, 90000);
+    } catch {
+      once('unknown');
+    }
+  });
+}
+
+function verifySfmcAuth() {
+  if (healthInflight) return healthInflight;
+  healthInflight = (async () => {
+    let r = await runHealthProbe(true);
+    if (r === 'unknown') r = await runHealthProbe(false); // haiku 미지원 등 → 기본 모델로 1회 재시도
+    healthInflight = null;
+    if (r === 'expired') {
+      setToolAuthErr(Date.now()); // 배너 ON — 패널을 열자마자 🔐 재인증 버튼이 보인다
+      markHealthy(Date.now());
+      console.log('🔐 SFMC 토큰 만료 감지 — 챗봇에 재인증 배너를 표시합니다.');
+    } else if (r === 'ok') {
+      if (lastToolAuthErr) setToolAuthErr(0); // 재인증이 끝났으면 배너 자동 소멸
+      markHealthy(Date.now());
+    } else {
+      console.log('⚠ SFMC 인증 헬스체크 판정 불가 — 정상으로 간주하고 넘어갑니다.');
+    }
+    return r;
+  })();
+  return healthInflight;
+}
+
+// 캐시가 만료됐으면 백그라운드로 실호출 확인을 건다 (응답은 기다리지 않는다 —
+// 확장이 5분마다·패널 열 때마다 /api/mcp-status를 다시 물어보므로 결과는 곧 반영된다).
+function maybeVerifySfmcAuth() {
+  if (lastToolAuthErr > 0) return;                 // 이미 '인증 필요' — 다시 확인할 필요 없음
+  if (Date.now() - healthTs < HEALTH_TTL) return;  // 아직 유효한 확인 결과가 있음
+  verifySfmcAuth();
+}
+
 // SFMC 인증 상태 조회 — 확장이 패널을 열 때 상단 인증 배너 표시용으로 호출 (프로브 60초 캐시 재사용).
 // 프로브가 정상이어도 도구 호출 단계 인증 오류 기억이 남아 있으면 '인증 필요'로 답한다
 // (리프레시 토큰 만료는 재인증 전엔 낫지 않으므로 시간 제한 없이 — 해제는 재인증/정상 호출 성공 시).
 app.get('/api/mcp-status', (_req, res) => {
+  maybeVerifySfmcAuth(); // (B) 6시간 지났으면 실호출 확인을 백그라운드로 — 응답은 지연시키지 않는다
   probeMcpAuth().then((needsAuth) => res.json({ needsAuth: needsAuth || lastToolAuthErr > 0 }));
 });
 
@@ -235,7 +317,8 @@ app.post('/api/chat', (req, res) => {
     'X-Accel-Buffering': 'no',
   });
 
-  // --dangerously-skip-permissions: 웹 봇은 사람이 "허용"을 못 누르므로 자동 승인이 필요  const args = ['-p', '--output-format', 'stream-json', '--verbose', '--dangerously-skip-permissions'];
+  // --dangerously-skip-permissions: 웹 봇은 사람이 "허용"을 못 누르므로 자동 승인이 필요
+  const args = ['-p', '--output-format', 'stream-json', '--verbose', '--dangerously-skip-permissions'];
   // 챗봇 정책: 저장소 코드/설정/문서를 고쳐달라는 직접 요청은 거부하게 한다.
   // (캠페인 워크플로가 만드는 산출물 — 정의서 xlsx·리포트·저니 이력 등 — 은 예외로 정상 동작)
   // shell:true 스폰은 인자를 자동 인용하지 않으므로 직접 큰따옴표로 감싼다(그래서 영문·ASCII로 작성).
@@ -295,11 +378,22 @@ app.post('/api/chat', (req, res) => {
         // 인증 프로브가 아직이면 완료까지 기다렸다가 result를 보낸다 (내부 25초 타임아웃 있음)
         resultPending = probeP.then(() => {
           // SFMC 도구를 실제로 쓰고 인증 오류 없이 끝났으면, 남아 있던 인증 오류 기억을 해제 (배너 자동 소멸)
-          if (usedSfmc && !authErr && lastToolAuthErr) setToolAuthErr(0);
+          if (usedSfmc && !authErr) {
+            if (lastToolAuthErr) setToolAuthErr(0);
+            markHealthy(Date.now()); // 실호출이 성공했으니 별도 헬스체크는 불필요
+          }
+          // 사용량은 '토큰'으로 내려보낸다 — 구독 사용량 소진분이지 청구액이 아니므로 금액은 표시하지 않는다.
+          // total = 이번 응답이 쓴 전체 토큰(입력+캐시생성+캐시읽기+출력), cached = 그중 캐시 재사용분.
+          const u = ev.usage || {};
+          const cached = u.cache_read_input_tokens || 0;
           const payload = {
             type: 'result',
             text: ev.result ?? '(빈 응답)',
-            cost: ev.total_cost_usd,
+            tokens: {
+              total: (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + cached + (u.output_tokens || 0),
+              cached,
+              output: u.output_tokens || 0,
+            },
             sessionId: ev.session_id,
             authError: authErr || undefined,
           };
@@ -322,7 +416,7 @@ app.post('/api/chat', (req, res) => {
       // - "refresh token is revoked/expired" / "obtain a new refresh token": SFMC 리프레시 토큰 만료
       //   (이 경우 MCP 연결 자체는 Connected라 프로브로는 못 잡는다 — 2026-08-28 실측)
       if (!usedSfmc && line.includes('mcp__sf-mce-mcp__')) usedSfmc = true; // 이번 요청이 SFMC 도구를 썼는지
-      if (!authErr && /(session is invalid or access is revoked|refresh token is (revoked|expired)|obtain a new refresh token)/i.test(line)) {
+      if (!authErr && AUTH_ERR_RE.test(line)) {
         authErr = true;
         setToolAuthErr(Date.now()); // 패널 재오픈 시 배너 표시용으로 기억 (파일 영속)
       }
@@ -408,6 +502,7 @@ app.post('/api/mcp-login', (_req, res) => {
     mcpLoginProc = null;
     probeCache.ts = 0; // 재인증 직후엔 캐시를 비워 다음 요청이 새 상태를 보게 한다
     setToolAuthErr(0); // 도구 단계 인증 오류 기억도 초기화 (배너 자동 소멸)
+    healthTs = 0;      // 재인증이 실제로 적용됐는지 다음 /api/mcp-status에서 실호출로 확인
   };
   child.on('close', done);
   child.on('error', done);
@@ -429,4 +524,6 @@ app.post('/api/stop', (req, res) => {
 app.listen(PORT, () => {
   console.log(`⚡ MCE 웹 브릿지 실행 중 → http://localhost:${PORT}`);
   console.log('   프로젝트 루트:', PROJECT_ROOT);
+  // (A) 기동 시 1회 — PC 부팅 직후 여기서 확인해 두면, 사용자가 챗봇을 열 때 배너가 이미 준비돼 있다
+  verifySfmcAuth();
 });

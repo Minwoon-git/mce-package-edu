@@ -78,7 +78,7 @@ Plan 설계·정의서·Journey 생성·값 진단은 하지 않습니다(각각
 3. **가이드 MD 생성** (5-3) — [`analysis-guide/ecommerce-default.md`](../skills/mce-campaign/reference/analysis-guide/ecommerce-default.md)를 골격으로 `analysis-guide/<고객사>.md` 생성. §1(RAW DE·원본 PK·조인키·**원본→개념 매핑표**·확장 컬럼·박제 파생값 표시·재계산 파생값), §2(HITL 확정 산식·의미규칙을 **원본 컬럼명으로**)를 채운다. 상단에 "STEP 0 자동 생성·검토 요망" 배너·생성일·확정 산식.
 
 > RECON_Profile·SEG_*·CP_DIAGNOSIS_AUTOMATION은 **만들지 않는다** — 데이터 적재 후 STEP 1이 이 가이드를 읽어 자동 부트스트랩한다([`analysis-guide/_common.md`](../skills/mce-campaign/reference/analysis-guide/_common.md) §6).
-> 활성 고객사 전환(SKILL.md/CLAUDE.md의 활성 고객사 줄 변경)은 **오케스트레이터가 사용자 확인 후** 한다. 워커는 하지 않는다.
+> 활성 고객사 전환(`reference/active-customer.json` 갱신)은 **오케스트레이터가 사용자 확인 후** 한다. 워커는 하지 않는다.
 
 **Phase B 반환 포맷:**
 

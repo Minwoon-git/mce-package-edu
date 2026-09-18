@@ -17,6 +17,7 @@ Journey를 SFMC에 직접 생성하지 않습니다 — 파일 생성 후 종료
 
 - **입력**: 상위가 전달하는 ① 선택된 캠페인명·활용 DE·핵심 필드, ② 실행 모드(수동/자동), ③ 수동 모드이면 상위가 사용자와 확정한 Plan 값(진입·스케줄·재진입·단계·분기 등), ④ **메시지 채널이 알림톡/문자/카카오/SMS이면** 상위가 "채널 해소" 단계에서 확정한 `seq`·`applicationExtensionKey`·`변수 매핑`을 받는다(워커는 micrm를 직접 조회하지 않는다).
 - **단일 출처(SSOT)**: 정의서 시트 구조·생성 스크립트·저니 구조 패턴·경로 규칙은 `mce-campaign` 스킬의 STEP 2 절과 `reference/` 파일을 따른다. 충돌 시 스킬을 우선한다.
+- **활성 고객사 가이드 경로는 [`reference/active-customer.json`](../skills/mce-campaign/reference/active-customer.json)의 `analysis_guide`** (아래 링크는 현재 기본값).
 - **고객사 값은 분석 가이드에서 읽는다**: 기획 관례(주 채널·재진입 기본·스케줄 시각 등)는 **활성 고객사 분석 가이드 [`reference/analysis-guide/ecommerce-default.md`](../skills/mce-campaign/reference/analysis-guide/ecommerce-default.md) §6(기획 가이드)**, 분기 필드·동의 컬럼명은 같은 파일 §1·§2를 따른다(임의 컬럼명 생성 금지). 저니 구조 공통 패턴은 [`reference/journey-build.md`](../skills/mce-campaign/reference/journey-build.md).
 - **사용자에게 직접 질문하지 않는다.** 수동 모드에서 값이 부족하면 임의 결정하지 말고 상위에 "어떤 값이 필요한지" 반환하여 상위가 사용자에게 묻게 한다.
 - **반환물**: 생성한 정의서 **파일 경로 + 캠페인 ID + Plan 요약 + 정의서 테이블(개요/저니 구조)** 을 반환한다. 이 결과를 상위가 받아 (수동 시) 사용자 승인을 거친 뒤 mce-journey-agent에 넘긴다.

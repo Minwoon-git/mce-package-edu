@@ -12,7 +12,11 @@
 
 > ⭐ 2층 구조는 `analysis-guide/`와 동일 철학. 새 고객사는 `<고객사>.json` **한 개만** 추가하고 아래 줄만 바꾼다.
 >
-> **활성 고객사: `<확인필요: 신규 고객사 브랜드 킷 파일명>`** — `_example-brand.json`을 복제해 만든 뒤 이 줄을 그 파일명으로 바꾼다.
+> **어떤 킷을 쓰는지는 여기 적지 않는다** — [`../active-customer.json`](../active-customer.json)의 `brand_kit` 하나가 선언이다(분석 가이드와 같은 스위치).
+> 새 고객사: `_example-brand.json`을 `<고객사>.json`으로 복제해 값을 채운 뒤, 그 JSON의 `brand_kit`을 `"email-template/<고객사>.json"`으로 바꾼다.
+>
+> 📊 **이 킷은 분석 리포트 PPT와 공용이다.** `report-builder/gen_report.js`가 같은 `brand_kit`을 읽어 리포트 색·폰트·로고를 맞춘다
+> (파생 규칙·선택 키 `report`는 [`../report-guide.md`](../report-guide.md) §5). 킷 하나 = 이메일 + 리포트 브랜드 일치.
 
 ---
 
@@ -23,6 +27,7 @@
 3. **브랜드 킷에 없는 값 임의 생성 금지.** 킷에 없는 색/폰트/레이아웃을 지어내지 않는다.
 4. **AI가 채우는 건 캠페인 카피·이미지뿐.** (제목·헤드라인·오퍼·CTA·상품 이미지)
 5. **born-compliant 요소(§4)는 삭제·공란 금지.**
+6. 🔒 **킷이 없으면 만들지 않는다.** [`../active-customer.json`](../active-customer.json)의 `brand_kit`이 `null`이거나 그 파일이 없으면, **`_example-brand.json`의 예시 색으로 대신 만들지 말고 중단**하고 상위에 보고한다(상위가 사용자에게 로고·색·폰트를 받아 킷을 만든 뒤 재개). 예시 색으로 나간 이메일은 고객사 브랜드 위반이다.
 
 ## 1. 브랜드 킷 → 템플릿 토큰 매핑
 
@@ -108,3 +113,19 @@
 ## 7. 재사용 우선
 
 신규 생성 전 항상 기존 에셋을 먼저 검색해 재사용한다([`email-standard.md`](../email-standard.md) §콘텐츠 선택 정책). 없을 때만 위 절차로 신규 생성.
+
+---
+
+## 8. 리포트 공용 키 (`report` 블록 — 선택)
+
+이 킷은 분석 리포트 PPT 빌더도 읽는다. 아래 키는 **없으면 위 `colors`·`font_stack`에서 자동 파생**되므로, 브랜드 가이드에 리포트용 색이 따로 있을 때만 채운다.
+
+| 키 | 의미 |
+|---|---|
+| `report.font` | PPT 폰트명 — **그 PC에 설치된 이름**. 없으면 `font_stack` 첫 패밀리(웹폰트명이면 대체 렌더될 수 있음) |
+| `report.ink` / `report.ink_bg` | 리포트 제목색 / 다크 슬라이드 배경. 없으면 `colors.text`와 그 shade |
+| `report.accent` | 리포트 전용 포인트색. 없으면 `colors.accent` |
+| `report.logo` | 표지 로고 `{path,x,y,w,h}` — **로컬 파일 경로**(이 킷 파일 기준 상대). 이메일용 `logo_url`(원격)은 PPT에 쓰지 않는다 |
+| `report.tokens` | `{"INK_BG":"0B1020", …}` 토큰명→HEX 직접 고정(파생값 대신) |
+
+> 상세 파생 계수·적용 순서 = [`../report-guide.md`](../report-guide.md) §5.

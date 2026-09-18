@@ -23,11 +23,32 @@ description: >
 >
 > 아래 STEP 1~4의 상세 절차·참조 데이터는 **상위·하위 에이전트 공통의 단일 출처(SSOT)** 다. 각 워커는 자기 STEP 절에 해당하는 규칙과 `reference/` 파일을 그대로 따른다.
 
-## 활성 고객사 분석 가이드
+## 활성 고객사 — 선언은 [`reference/active-customer.json`](reference/active-customer.json) 한 곳
 
-- **활성 고객사 = `ecommerce-default`** (일반 이커머스 / 기본 템플릿 — 실습 데이터셋 `docs/schema-samples/urbanmall/`) → 이 BU의 값(스키마·의미규칙·진입DE·기획·전이 고정값) 단일 출처는 [`reference/analysis-guide/ecommerce-default.md`](reference/analysis-guide/ecommerce-default.md). 3개 에이전트가 각자 절을 읽는다(분석 §1·2, 기획 §6, 전이 §7).
-  - 기본 템플릿(`ecommerce-default`)은 [`reference/analysis-guide/ecommerce-default.md`](reference/analysis-guide/ecommerce-default.md)에 남아 있으나 **비활성**이다 — 참조하지 않는다.
-- 실제 고객사 확정 시 `reference/analysis-guide/<고객사>.md` 를 만들고 이 줄의 활성 고객사만 바꾼다. 공통 방법론·에이전트·스크립트는 수정하지 않는다.
+⭐ **고객사명을 이 문서(또는 다른 문서)에 적지 않는다.** 활성 고객사·분석 가이드 경로·브랜드 킷 경로는 전부 그 JSON 한 파일에 있다.
+
+```jsonc
+{ "customer": "<고객사>",                          // 활성 고객사
+  "analysis_guide": "analysis-guide/<고객사>.md",  // 값(스키마·의미규칙·진입DE·기획·전이 고정값)
+  "brand_kit": "email-template/<고객사>.json" }    // 브랜드(이메일 + 리포트 공통) — 없으면 null
+```
+
+- **작업 전 이 파일을 읽어** `analysis_guide`가 가리키는 MD를 연다. 3개 에이전트가 각자 절을 읽는다(분석 §1·2, 기획 §6, 전이 §7).
+- **산출물(이메일·리포트)을 만들기 전 `brand_kit`을 확인한다.** `null`이거나 파일이 없으면 고객사 브랜드가 적용되지 않는다 → 아래 가드 참조.
+- 실제 고객사 확정 시: `reference/analysis-guide/<고객사>.md`(STEP 0 자동 생성) + `reference/email-template/<고객사>.json`(브랜드 킷)을 만들고 **이 JSON만** 갱신한다. 공통 방법론·에이전트·스크립트는 수정하지 않는다.
+- 전환은 **오케스트레이터가 사용자 확인 후**에만 한다(워커 임의 변경 금지).
+
+### 🔒 산출물 브랜드 가드 (이메일·리포트 공통)
+
+고객사 전달용 산출물을 만들기 직전에 `brand_kit`을 확인한다.
+
+| 상태 | 리포트(PPT) | 이메일 |
+|---|---|---|
+| `brand_kit` 지정 + 파일 있음 | 그 킷으로 자동 렌더 | 그 킷 값으로만 렌더 |
+| `brand_kit: null` | 중립 팔레트로 생성(빌더가 경고 출력) | **중립 예시 색으로 만들지 말고 중단** — 상위가 사용자에게 브랜드 값(로고·색·폰트)을 받아 킷을 만든 뒤 진행 |
+| 지정했는데 파일 없음 | **빌드 실패(exit 1)** — 킷을 만들거나 경로를 고친다 | 동일하게 중단 |
+
+> `_example-brand.json`은 **구조 예시**다. 그 색(`#1d4ed8` 등)으로 고객사 이메일을 만들지 않는다.
 
 ## 참조 파일 (필요 시점에 읽는다)
 
@@ -39,6 +60,7 @@ description: >
 - **SFMC 고정값(GUID 등)** → [`reference/fixed-values.md`](reference/fixed-values.md) — 저니 이메일 액티비티 구성 시
 - **오류 학습 / 알려진 이슈** → [`reference/error-log.md`](reference/error-log.md) — STEP 3 시작 전 먼저 훑고, 새 오류 발생·해결 시 여기에 한 줄 추가
 - **분석 리포트 생성 가이드 (D1)** → [`reference/report-guide.md`](reference/report-guide.md) — 진단 결과를 고객 전달용 PPT 리포트로 만들 때(구조·내용·디자인·품질 체크리스트 SSOT)
+- **활성 고객사 선언(고객사·분석 가이드·브랜드 킷)** → [`reference/active-customer.json`](reference/active-customer.json) — 작업 시작 시 먼저 읽는다
 - **스키마 매핑 (STEP 0)** → [`reference/schema-mapping.md`](reference/schema-mapping.md) — 고객 스키마 파일(DDL/CSV)의 원본 컬럼에 표준 개념을 태깅하고 RAW DE(원본 컬럼명)·Import·가이드 MD를 세팅할 때(STEP 0 SSOT)
 
 ## 시트 정보 (Google Sheets 정의서 입력 시)
@@ -175,7 +197,7 @@ STEP 0의 HITL(핵심 컬럼 확인)은 워커가 격리 실행이라 직접 못
    - **동의값 해석** — `Y/N`·공란을 동의/미동의로 어떻게 볼지
    - 신뢰도 낮은 매핑 전부
 3. **Phase B 위임** — 확정 매핑 + HITL 확정값 + 고객사명을 `mce-schema-agent`에 넘겨 다시 호출 → 워커가 **빈 RAW DE(원본 컬럼명) 생성 + `analysis-guide/<고객사>.md` 자동 생성 + CSV 업로드 안내**를 수행하고 결과를 반환한다.
-4. **활성 고객사 전환** — 오케스트레이터가 사용자에게 전환 여부를 확인한 뒤, SKILL.md "활성 고객사" 줄과 CLAUDE.md 라우팅 표기를 `<고객사>`로 바꾼다. (활성 소스 변경은 시스템 전체 영향 → **명시적 단계**, 워커가 임의 전환 금지.)
+4. **활성 고객사 전환** — 오케스트레이터가 사용자에게 전환 여부를 확인한 뒤 [`reference/active-customer.json`](reference/active-customer.json)의 `customer`·`analysis_guide`·`updated`를 바꾼다(**이 파일 하나만** — 다른 문서는 손대지 않는다). `brand_kit`은 이메일·리포트를 처음 만들 때 채운다. (활성 소스 변경은 시스템 전체 영향 → **명시적 단계**, 워커가 임의 전환 금지.)
 5. **데이터 적재 게이트 안내** — 세팅 완료 후 "SFMC UI에서 각 RAW DE에 CSV 업로드(Match by Header Row · Overwrite) → 적재 확인 → 그때 STEP 1 진단 가능(리포트는 요청 시)"임을 보고한다. STEP 0는 **빈 DE와 가이드까지만** 만든다(적재·Import 자동화 안 함).
 
 > RECON_Profile·SEG_*·CP_DIAGNOSIS_AUTOMATION은 STEP 0가 만들지 않는다 — 데이터 적재 후 **STEP 1이 가이드를 읽어 자동 부트스트랩**한다([`reference/analysis-guide/_common.md`](reference/analysis-guide/_common.md) §6).
@@ -195,7 +217,7 @@ STEP 1에 진입하면, **사용자가 입력한 프롬프트에 특정 의도 �
 
 | 갈래 | 트리거 (사용자 입력 예) | 읽기 범위 | 출력 형태 |
 |---|---|---|---|
-| **A. 의도 없이 전체 (리스트업)** *(우선 갈래)* | "생성 가능한 캠페인 리스트 업", "어떤 캠페인 만들 수 있어?", "전체 보여줘", "캠페인 목록" 등 **특정 의도 키워드가 없는 포괄적 요청** | `Customer_Profile`(key `CD_Customer_Profile_DE`)을 **진단 집계** (진단 DE 요약본 ~15줄 또는 단일 집계 SQL/행 조회) | **진단 결과표(지표·비율·약점·추천) + 약점 우선순위 추천 캠페인 목록**을 제시 (진입 DE 나열·확정 대상자 추출 없음, → 1-4-A) |
+| **A. 의도 없이 전체 (리스트업)** *(우선 갈래)* | "생성 가능한 캠페인 리스트 업", "어떤 캠페인 만들 수 있어?", "전체 보여줘", "캠페인 목록" 등 **특정 의도 키워드가 없는 포괄적 요청** | 활성 분석 소스(`EDU99_RECON_Profile`, key `EDU99_RECON_Profile_DE`)를 **진단 집계** (진단 DE 요약본 ~15줄 또는 단일 집계 SQL/행 조회) | **진단 결과표(지표·비율·약점·추천) + 약점 우선순위 추천 캠페인 목록**을 제시 (진입 DE 나열·확정 대상자 추출 없음, → 1-4-A) |
 | **B. 의도 포함** | "신규 회원 캠페인 만들어줘", "이탈 고객 캠페인", "장바구니 캠페인" 등 **신규/이탈/장바구니/생일/쿠폰 등 의도 키워드 포함** | `Customer_Profile`의 해당 의도 지표 위주로 진단 | 해당 지표의 진단 비율을 근거로 한 **상세 후보 표** (복잡도 단순→복합 정렬, → 1-4-B) |
 
 > ⚠️ **갈래 A는 "캠페인"을 추천한다 — "진입 DE"를 나열하지 않는다.** `Customer_Profile`을 진단해 약점에 맞는 캠페인을 [`reference/analysis-guide/_common.md`](reference/analysis-guide/_common.md)의 진단 방법 + 활성 고객사 분석 가이드([`reference/analysis-guide/ecommerce-default.md`](reference/analysis-guide/ecommerce-default.md))의 기준선·룰셋 기준으로 제시한다. `Campaign_Package` 하위 진입 DE(`WELCOME_ENTRY_DE` 등)나 계정에 떠 있는 기존 진입 DE 목록을 긁어 나열하지 않는다. (진입 DE는 캠페인을 **고른 뒤** 1-6에서 Automation SQL Query로 생성한다.)
@@ -271,7 +293,7 @@ STEP 1에 진입하면, **사용자가 입력한 프롬프트에 특정 의도 �
 - 집계가 불가하면(세션/권한 등) 그 사유를 밝히고, 부득이하면 컬럼 존재 기반 목록으로 폴백하되 "비율 미산출"임을 명시한다.
 - 사용자가 특정 캠페인을 지목하면 → **갈래 B(1-4-B)** 로 상세 후보를 좁히고, 선택 확정 후 **1-6(집계+진입 DE 생성)** 으로 간다.
 
-> 📄 **분석 리포트 생성 — 사용자가 명시적으로 요청할 때만 (자동 생성 금지)**: 갈래 A 진단 직후에는 리포트를 만들지 않고 **진단표+추천 목록만 즉시 출력**한다(출력 말미에 "분석 리포트(PPT)가 필요하면 요청하세요" 1줄 안내). 사용자가 "리포트 만들어줘/리포트 줘/PPT로" 등으로 요청하면 그때 [`reference/report-guide.md`](reference/report-guide.md) §6·§7대로 **진단 데이터 JSON을 작성해 빌더로 PPTX 리포트를 생성**한다(`node reference/report-builder/gen_report.js <데이터.json> <출력.pptx>` — 디자인·레이아웃은 빌더에 고정, AI는 데이터 JSON만 작성). `reports/`에 저장하고 파일 경로를 제시한다. 리포트엔 핵심 요약·고객 기반 구조(퍼널/도달)·세그먼트 진단·기회 우선순위·캠페인 상세가 담긴다(구조·디자인은 공통, 값은 이번 진단·활성 고객사 분석 가이드 기준). **HTML/Artifact는 생성하지 않으며, 슬라이드 코드를 매번 새로 작성하지 않는다.** 직전 진단 데이터는 세션 안에 있으므로 재진단 없이 JSON만 작성해 빌더를 돌린다.
+> 📄 **분석 리포트 생성 — 사용자가 명시적으로 요청할 때만 (자동 생성 금지)**: 갈래 A 진단 직후에는 리포트를 만들지 않고 **진단표+추천 목록만 즉시 출력**한다(출력 말미에 "분석 리포트(PPT)가 필요하면 요청하세요" 1줄 안내). 사용자가 "리포트 만들어줘/리포트 줘/PPT로" 등으로 요청하면 그때 [`reference/report-guide.md`](reference/report-guide.md) §6·§7대로 **진단 데이터 JSON을 작성해 빌더로 PPTX 리포트를 생성**한다(`node reference/report-builder/gen_report.js <데이터.json> <출력.pptx>` — 레이아웃은 빌더에 고정, **색·폰트·로고는 이메일과 같은 브랜드 킷 `reference/email-template/<고객사>.json`에서 자동 적용**(§5), AI는 데이터 JSON만 작성). `reports/`에 저장하고 파일 경로를 제시한다. 리포트엔 핵심 요약·고객 기반 구조(퍼널/도달)·세그먼트 진단·기회 우선순위·캠페인 상세가 담긴다(구조·디자인은 공통, 값은 이번 진단·활성 고객사 분석 가이드 기준). **HTML/Artifact는 생성하지 않으며, 슬라이드 코드를 매번 새로 작성하지 않는다.** 직전 진단 데이터는 세션 안에 있으므로 재진단 없이 JSON만 작성해 빌더를 돌린다.
 > 🚫 **무발화**: 워커 위임→진단은 **전부 침묵하며 연속 실행**한다. "위임했습니다 / 완료됐습니다 / 갈래 A이므로 생성하겠습니다" 같은 진행 멘트를 도구 호출 사이에 **한 줄도** 넣지 않고, **맨 마지막에 진단표 + 추천 목록을 1회에** 출력한다(전역 "🚫 결과만 전달" 규칙). 리포트를 요청받아 생성할 때도 동일 — 중간 멘트 없이 완료 후 파일 경로만 출력한다.
 
 사용자 의도와 분석한 DE/필드를 결합하여 **2~5개의 캠페인 후보**를 단일 표로 제시한다.

@@ -268,6 +268,14 @@
       border-top-left-radius: 5px; flex: 1; box-shadow: var(--shadow-sm);
     }
 
+    /* ── 사용량(토큰) 표시 ── */
+    .usage {
+      margin-top: 8px; padding-top: 7px; border-top: 1px dashed var(--border);
+      font-size: 11px; color: var(--muted); display: flex; gap: 6px; align-items: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .usage .dot { opacity: .45; }
+
     /* ── 진행 과정 ── */
     .progress { font-size: 12px; color: var(--muted); }
     .progress .step {
@@ -657,6 +665,27 @@
     return div;
   }
 
+  // 토큰 수를 읽기 쉬운 단위로 (1,234 → 1.2K / 2,630,692 → 2.6M)
+  function fmtTok(n) {
+    if (!Number.isFinite(n) || n <= 0) return '0';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return String(n);
+  }
+
+  // 답변 말풍선 아래 사용량 한 줄. 금액이 아니라 토큰으로만 표시한다
+  // (구독 사용량 소진분이라 '$'로 보이면 별도 과금처럼 오해된다).
+  function usageLine(bubble, t, convTotal) {
+    if (!t || !t.total) return;
+    const el = document.createElement('div');
+    el.className = 'usage';
+    const parts = [`사용량 ${fmtTok(t.total)} 토큰`];
+    if (t.cached) parts.push(`캐시 재사용 ${fmtTok(t.cached)}`);
+    if (convTotal) parts.push(`이 대화 누적 ${fmtTok(convTotal)}`);
+    el.textContent = parts.join('  ·  ');
+    bubble.appendChild(el);
+  }
+
   function botNode() {
     const div = document.createElement('div');
     div.className = 'msg bot';
@@ -716,8 +745,9 @@
     for (const m of conv.messages) {
       if (m.role === 'user') bodyEl.appendChild(userNode(m.text));
       else {
-        const { node, answer } = botNode();
+        const { node, bubble, answer } = botNode();
         renderMd(answer, m.text);
+        usageLine(bubble, m.tokens, null); // 누적은 마지막 답변에서만 의미 있으므로 생략
         bodyEl.appendChild(node);
       }
     }
@@ -1312,6 +1342,7 @@
     let resultText = null;
     let errored = false;
     let authErr = false; // 서버가 SFMC 인증 만료를 감지한 경우 (result 이벤트의 authError)
+    let tokens = null;   // 이번 응답이 쓴 토큰 {total, cached, output}
     const startedAt = Date.now(); // 결과 회수 시 이 요청의 결과인지(이전 턴 잔여물이 아닌지) 판별용
 
     const finishTurn = () => {
@@ -1320,7 +1351,9 @@
       if (!errored) {
         const md = resultText ?? '(응답이 중단되었습니다)';
         renderMd(answer, md);
-        conv.messages.push({ role: 'bot', text: md });
+        if (tokens && tokens.total) conv.tokens = (conv.tokens || 0) + tokens.total;
+        usageLine(bubble, tokens, conv.tokens);
+        conv.messages.push({ role: 'bot', text: md, tokens: tokens || undefined });
         conv.updatedAt = Date.now();
         saveDB();
         if (authErr) attachReauth(bubble);
@@ -1339,6 +1372,7 @@
         // 진행 과정은 화면에 노출하지 않는다 — 결과만 표시 (typing 점 애니메이션이 처리 중 표시를 대신함)
       } else if (ev.type === 'result') {
         resultText = ev.text;
+        tokens = ev.tokens || null;
         authErr = !!ev.authError;
         setAuthbar(authErr); // 응답마다 서버가 인증 상태를 확인하므로 배너도 함께 동기화
         if (ev.sessionId) { conv.sessionId = ev.sessionId; saveDB(); }
@@ -1365,6 +1399,7 @@
           if (res.result && res.result.ts >= startedAt) {
             clearInterval(iv);
             resultText = res.result.text;
+            tokens = res.result.tokens || null; // 폴링으로 회수한 결과에도 사용량이 실려 온다
             authErr = !!res.result.authError;
             setAuthbar(authErr);
             if (res.result.sessionId) { conv.sessionId = res.result.sessionId; saveDB(); }

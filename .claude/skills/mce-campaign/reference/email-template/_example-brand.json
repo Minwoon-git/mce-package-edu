@@ -22,6 +22,10 @@
     "company": "<법인명 — 푸터 표기용>",
     "use_account_address": true
   },
+  "report": {
+    "_comment": "분석 리포트 PPT(report-builder/gen_report.js) 전용. 생략하면 위 colors·font_stack에서 파생된다. 선택 키: font(PPT에 설치된 폰트명) · ink(제목·다크배경 기준색, 기본 colors.text) · ink_bg · accent(리포트 전용 포인트색) · logo({path,x,y,w,h} — 로컬 파일) · tokens({토큰명:HEX} 개별 고정). 상세 = ../report-guide.md §5",
+    "font": "맑은 고딕"
+  },
   "image_folder_category_id": "<확인필요: sfmc_get_content_categories>",
   "image_domain": "<이미지 호스팅 도메인>",
   "source": "<고객사 공식 사이트 URL — 색상·로고 추출 출처>"

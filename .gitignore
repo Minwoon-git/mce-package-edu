@@ -18,6 +18,11 @@ reports/*.pdf
 
 # 웹 브릿지 계정 게이트 설정 (테넌트별 — PC마다 다름, 추적 안 함)
 web-bridge/config.json
+# 브릿지 런타임 상태 (SFMC 인증 오류 기억·헬스체크 캐시) — PC마다 다르므로 커밋하지 않는다
+web-bridge/.auth-state.json
+web-bridge/.auth-health.json
+web-bridge/bridge.out.log
+web-bridge/bridge.err.log
 
 # 에이전트 런타임 메모리 (BU/테넌트 ID·객체 ID 포함 — PC/계정마다 다름, 추적 안 함)
 .claude/agent-memory/

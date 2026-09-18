@@ -46,9 +46,11 @@
 
 ---
 
-## 2. 디자인 시스템 — 고급 중립 (브랜드 미정)
+## 2. 디자인 시스템 — 레이아웃 고정 + 브랜드 토큰
 
-> 토큰·레이아웃은 **`gen_report.js` 상단 토큰 블록에 코드로 고정**돼 있다. 아래는 그 요약이며, 바꿀 땐 빌더를 수정한다(§5).
+> **레이아웃**은 `gen_report.js`에 코드로 고정된다(바꿀 일 없음).
+> **색·폰트·로고**는 코드에 없다 — 이메일과 **같은 브랜드 킷**(`email-template/<고객사>.json`)에서 읽어 파생한다(§5).
+> 아래 HEX는 **브랜드 킷이 없을 때 쓰는 중립 기본값**(검증 샘플과 동일)이며, 킷이 있으면 그 브랜드 색으로 대체된다.
 
 ### 컬러 토큰
 | 역할 | HEX | 용도 |
@@ -105,12 +107,56 @@
 
 ---
 
-## 5. 브랜드 교체 지점 (나중에 브랜드 나오면 여기만)
+## 5. 브랜드 적용 — 브랜드 킷 1개가 이메일·리포트 공통 SSOT
 
-**`gen_report.js` 상단 "디자인 토큰" 블록 한 곳**만 바꾸면 전체 리브랜딩:
-- `INK`/`INK_BG`/`ACCENT` 계열 → 브랜드 컬러, `F`(폰트) → 브랜드 폰트
-- 표지 로고 = 데이터 JSON의 `meta.logo`({path,x,y,w,h})로 주입 — 코드 수정 불필요
-> 색·폰트·로고가 고객사별 값, 구조·규칙이 공통. (분석 가이드의 "값/방법 분리"와 동일한 원칙)
+⭐ **고객사 색·폰트·로고는 빌더 코드에 넣지 않는다.** 이메일이 쓰는 그 브랜드 킷
+[`email-template/<고객사>.json`](email-template/_example-brand.json)을 리포트 빌더가 **그대로 읽어** 토큰을 파생한다.
+→ 킷 한 파일만 만들면 **A고객사 이메일과 A고객사 리포트가 자동으로 같은 브랜드**가 된다. (분석 가이드의 "값/방법 분리"와 동일한 원칙)
+
+```
+리포트 = 고정 gen_report.js(레이아웃·규칙)  +  email-template/<고객사>.json(브랜드)  +  데이터 JSON(진단값)
+이메일 = 고정 _master.html(레이아웃)        +  email-template/<고객사>.json(브랜드)  +  캠페인 카피
+```
+
+### 5-1. 킷을 찾는 순서 (먼저 걸리는 것 하나)
+
+| 순위 | 지정 방법 | 쓰는 때 |
+|---|---|---|
+| 1 | CLI `--brand <경로.json \| 고객사명 \| none>` | 한 번만 다른 브랜드로 뽑을 때 (`none` = 중립 강제) |
+| 2 | 데이터 JSON `meta.brandKit` (경로 또는 고객사명) | 그 리포트에 브랜드를 고정해 둘 때 |
+| 3 | [`active-customer.json`](active-customer.json)의 `brand_kit` | **기본** — 이메일과 같은 활성 고객사 킷을 자동 사용 |
+| 4 | 없음 | 중립 기본 팔레트(§2 HEX)로 생성 |
+
+- **지정했는데 파일이 없으면 에러로 중단**한다(1·2·3 모두 — 다른 브랜드로 조용히 나가는 사고 방지).
+- `brand_kit`이 `null`이면 4(중립)로 가되 **경고가 찍힌다** — 고객사 전달용이면 킷을 먼저 만든다.
+- 1·2로 지정한 킷이 활성 고객사 킷과 **다르면 ⚠️ 불일치 경고**가 찍힌다(A고객사 데이터 + B고객사 브랜드 방지).
+- 빌드 시 `[brand] <브랜드명> (<출처>) · accent #… · font …` 한 줄이 찍히므로 **어떤 킷이 적용됐는지 항상 확인**한다.
+
+### 5-2. 브랜드 킷 → 리포트 토큰 파생 (결정적 계산 — 임의 색 생성 아님)
+
+`tint(c,t)` = c를 흰색 쪽으로 t만큼, `shade(c,t)` = 검정 쪽으로 t만큼 섞은 값.
+
+| 리포트 토큰 | 출처 / 계산 |
+|---|---|
+| `ACCENT` | `report.accent` → 없으면 `colors.accent` **(필수)** |
+| `INK` | `report.ink` → 없으면 `colors.text` **(필수)** |
+| `INK_BG` | `report.ink_bg` → 없으면 `shade(INK, .20)` |
+| `TEXT` / `MUTE` | `tint(INK, .10)` / `colors.muted`(없으면 `tint(INK, .45)`) |
+| `LINE`·`CARD`·`CHIP_BG`·`TRACK`·`BAR_REST`·`SHADOW` | `tint(INK, .90/.965/.94/.84/.70/.60)` |
+| `ACCENT_SOFT`·`ACCENT_DARK`·`ACCENT_TEXT` | `tint(ACCENT,.90)` · `shade(ACCENT,.60)` · `shade(ACCENT,.52)` |
+| `TOP_TINT` / `TOP_LINE` | `tint(ACCENT, .955)` / `tint(ACCENT, .80)` |
+| `DK_KICKER` | `tint(ACCENT, .42)` |
+| `DK_*`(META·LINE·BODY·SUB·RING·STAT·STAT_LBL·VALUE) | `tint(INK_BG, .53/.18/.78/.73/.08/.74/.42/.93)` |
+| `F`(폰트) | `report.font` → 없으면 `font_stack`의 첫 패밀리 → 없으면 `맑은 고딕` |
+
+- **파생값을 쓰기 싫으면** 킷의 `report.tokens`에 `{"INK_BG":"0B1020", …}` 처럼 토큰명→HEX로 직접 고정한다(브랜드 가이드에 색이 정해져 있을 때).
+- `report.font`는 **PPT를 여는 PC에 설치된 폰트명**을 쓴다. 웹폰트명(`NotoSansKR` 등)만 있으면 대체 폰트로 렌더되므로 `report.font`를 따로 지정한다.
+- `INK`·`ACCENT`가 너무 밝으면 빌드 시 대비 경고가 뜬다 → `report.ink`/`report.accent`로 진한 톤을 지정한다.
+
+### 5-3. 표지 로고
+
+`meta.logo`({path,x,y,w,h}) → 없으면 킷의 `report.logo`(같은 형식, `path`는 킷 파일 기준 상대 경로)를 쓴다.
+**둘 다 없으면 로고 없이 생성**되고 경고가 찍힌다. 킷의 `logo_url`(이메일용 원격 URL)은 PPT에 쓰지 않는다 — 로컬 파일로 내려받아 `report.logo.path`로 지정한다.
 
 ---
 
@@ -120,7 +166,7 @@
 
 | 키 | 채울 값 |
 |---|---|
-| `meta` | kicker·title·**subtitle(결론 티저)**·population·baseDate·industry·source·**sample(불리언→SAMPLE 칩)**·logo |
+| `meta` | kicker·title·**subtitle(결론 티저)**·population·baseDate·industry·source·**sample(불리언→SAMPLE 칩)**·logo·**brandKit(선택 — 브랜드 킷 경로/고객사명, §5-1)** |
 | `summary` | **title(주제형)·subtitle(결론 부제)**·narrative(런)·stats 3개(value/unit/label/**sub=해석 1줄**)·priority 3개(name/why)·footnote(분모 각주) |
 | `base` | title·subtitle·퍼널 funnel[]({label,value,display,conv})·reach(도달/미동의)·insight·footnote(유도 산식) |
 | `segments` | title·subtitle·rows[]({label,count,display,ratio,denom,top,**constraint(점선)**})·insight·footnote |
@@ -147,6 +193,8 @@ RECON_Profile에서 전부 집계 가능. 산출했으면 해당 필드/서술�
 1. **데이터 JSON 작성**: STEP 1 진단 결과로 §6 계약에 맞춰 `reports\report-data_YYYYMMDD.json` 작성. (`sample-data.json`을 복사해 값·문장을 교체하는 방식 권장 — 문장도 데이터에 맞게 다시 쓴다, 샘플 문장 복붙 금지)
 2. **빌드**: 프로젝트 루트에서
    `node .claude\skills\mce-campaign\reference\report-builder\gen_report.js reports\report-data_YYYYMMDD.json reports\고객데이터_분석리포트_YYYYMMDD.pptx`
+   브랜드는 활성 고객사 킷이 자동 적용된다(§5-1). 다른 브랜드로 뽑을 때만 `--brand <고객사명|킷.json>`, 중립으로 뽑을 때만 `--brand none`을 붙인다.
+   ⚠️ 실행 후 **`[brand] …` 한 줄을 확인**한다 — 고객사 리포트인데 `브랜드 킷 없음`이 찍히면 킷을 먼저 만든다(`email-template/_example-brand.json` 복제 → [`active-customer.json`](active-customer.json)의 `brand_kit` 지정).
 3. **QA (렌더링)**: PowerPoint COM으로 PNG 내보내 §4 체크리스트 확인 —
    `PowerPoint.Application` → `Presentations.Open(path,-1,0,0)` → `Slides.Item(n).Export(png,"PNG",1600,900)`
    (LibreOffice가 있으면 soffice 변환도 가능. 텍스트 넘침·고아 줄바꿈 발견 시 **JSON 문장을 다듬어** 재빌드 — 빌더 코드는 건드리지 않는다.)

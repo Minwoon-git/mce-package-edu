@@ -5,7 +5,7 @@
 > 그런 값은 **활성 고객사 분석 가이드 파일**(예: [`ecommerce-default.md`](ecommerce-default.md))에 있다.
 >
 > **읽는 순서**: 이 `_common.md`(방법) → 활성 고객사 분석 가이드(`ecommerce-default.md`, 값) 순으로 함께 읽는다.
-> 활성 고객사는 `SKILL.md`/`CLAUDE.md`의 "활성 고객사 분석 가이드" 지정을 따른다(기본 `ecommerce-default`).
+> 활성 고객사 가이드의 경로는 [`../active-customer.json`](../active-customer.json)의 `analysis_guide` 하나로 정해진다(문서에 고객사명을 중복 기재하지 않는다).
 
 ---
 

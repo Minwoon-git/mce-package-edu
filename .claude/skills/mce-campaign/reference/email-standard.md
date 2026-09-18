@@ -30,7 +30,8 @@
 > 빈 본문/단순 텍스트 이메일을 만든 뒤 나중에 footer만 붙이는 방식은 **금지** — SFMC 검증 플래그가 갱신되지 않아 CAN-SPAM "물리적 주소 없음" 오류가 계속 남는다.
 
 > ⭐ **신규 생성은 템플릿 기반으로 한다.** 골격·자리표시자·이미지(C) 절차·고객사 값 분리는 [`email-template/_template-guide.md`](email-template/_template-guide.md)가 SSOT다.
-> `email-template/_master.html`(검증 통과 골격) + `email-template/<고객사>.json`(브랜드 값)을 채워 완성 HTML을 만든 뒤 `sfmc_create_content_builder_asset`으로 생성한다.
+> `email-template/_master.html`(검증 통과 골격) + **[`active-customer.json`](active-customer.json)의 `brand_kit`이 가리키는 `<고객사>.json`**(브랜드 값)을 채워 완성 HTML을 만든 뒤 `sfmc_create_content_builder_asset`으로 생성한다.
+> 🔒 `brand_kit`이 `null`이거나 그 파일이 없으면 **예시 색으로 만들지 말고 중단**하고 상위에 보고한다(_template-guide.md §0-6).
 > 아래 항목은 그 요약이다.
 
 **필수 구성 (모든 발송용 이메일):**

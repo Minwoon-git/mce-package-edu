@@ -1,30 +1,175 @@
 // 분석 리포트 PPT 빌더 — report-guide.md §7 SSOT의 실행체.
-// 사용: node gen_report.js <data.json> <out.pptx>
-// 데이터 계약은 report-guide.md §6 + sample-data.json 참조. 디자인은 여기 고정 —
+// 사용: node gen_report.js <data.json> <out.pptx> [--brand <브랜드킷.json|고객사명|none>]
+// 데이터 계약은 report-guide.md §6 + sample-data.json 참조. 레이아웃은 여기 고정 —
 // 진단 데이터(JSON)만 바꾸면 항상 같은 품질로 나온다. 레이아웃 수정은 이 파일에서만.
+//
+// ⭐ 색·폰트·로고는 여기 하드코딩하지 않는다. 이메일과 **같은 브랜드 킷 1개**
+//    (email-template/<고객사>.json)를 읽어 디자인 토큰을 파생한다 → report-guide.md §5.
 const fs = require("fs");
 const path = require("path");
 const pptxgen = require("pptxgenjs");
 
-const dataPath = process.argv[2];
-const outPath = process.argv[3];
-if (!dataPath || !outPath) { console.error("usage: node gen_report.js <data.json> <out.pptx>"); process.exit(1); }
+const argv = process.argv.slice(2);
+const brandArgIdx = argv.indexOf("--brand");
+const brandArg = brandArgIdx >= 0 ? argv[brandArgIdx + 1] : null;
+const positional = argv.filter((a, i) => brandArgIdx < 0 || (i !== brandArgIdx && i !== brandArgIdx + 1));
+const dataPath = positional[0];
+const outPath = positional[1];
+if (!dataPath || !outPath) { console.error("usage: node gen_report.js <data.json> <out.pptx> [--brand <kit.json|고객사명|none>]"); process.exit(1); }
 const D = JSON.parse(fs.readFileSync(path.resolve(dataPath), "utf8"));
 
-// ---- 디자인 토큰 (report-guide §2 SSOT) ----
-const INK = "1A2238", INK_BG = "141B2E", TEXT = "2B3245", MUTE = "6B7280",
-      LINE = "E5E8EE", CARD = "F7F8FB", ACCENT = "0E9F8E", ACCENT_SOFT = "E7F4F1",
-      ACCENT_DARK = "0B3F39", WHITE = "FFFFFF",
-      BAR_REST = "B7BFD0",            // 강조 외 막대
-      TOP_TINT = "F1F8F6", TOP_LINE = "CBE4DE", // 우선순위 상위 3행
-      CHIP_BG = "F0F2F7",             // 분모 칩
-      TRACK = "D9DEE8";               // 스택바 트랙
-// 다크 슬라이드 전용
-const DK_KICKER = "6FD8C9", DK_META = "8B93A8", DK_LINE = "3A425A",
-      DK_BODY = "C7CCDA", DK_SUB = "B8C0D0", DK_RING = "222C47",
-      DK_STAT = "B9C2D6", DK_STAT_LBL = "6E7891";
+// ===================================================================
+// 브랜드 킷 해석 (이메일·리포트 공통 SSOT)
+// 우선순위: --brand > data.json meta.brandKit > _template-guide.md 활성 고객사 > 중립 기본
+// ===================================================================
+const REF_DIR = path.resolve(__dirname, "..");
+const KIT_DIR = path.join(REF_DIR, "email-template");
+const ACTIVE_JSON = path.join(REF_DIR, "active-customer.json");
+const GUIDE_MD = path.join(KIT_DIR, "_template-guide.md");
 
-const F = "맑은 고딕";
+function kitPathFrom(ref, baseDir) {
+  if (!ref) return null;
+  const cands = /\.json$/i.test(ref)
+    ? [path.resolve(baseDir, ref), path.resolve(process.cwd(), ref), path.join(KIT_DIR, path.basename(ref))]
+    : [path.join(KIT_DIR, ref + ".json")];
+  return cands.find(fs.existsSync) || null;
+}
+// 활성 고객사 선언(reference/active-customer.json) — 분석 가이드·브랜드 킷 공통 단일 스위치.
+function readActiveCustomer() {
+  if (!fs.existsSync(ACTIVE_JSON)) return null;
+  try { return JSON.parse(fs.readFileSync(ACTIVE_JSON, "utf8")); }
+  catch (e) { console.error(`active-customer.json 파싱 실패: ${e.message}`); process.exit(1); }
+}
+// (레거시) _template-guide.md 의 **활성 고객사: `<파일명>`** 줄 — active-customer.json 이 없을 때만.
+function activeKitFromGuide() {
+  if (!fs.existsSync(GUIDE_MD)) return null;
+  const m = fs.readFileSync(GUIDE_MD, "utf8").match(/활성 고객사:\s*`([^`]+)`/);
+  if (!m) return null;
+  const ref = m[1].trim();
+  if (!ref || ref.startsWith("<")) return null;   // <확인필요: ...> = 미해소
+  return kitPathFrom(ref, KIT_DIR);
+}
+
+let brandPath = null, brandSource = "";
+if (brandArg && brandArg !== "none") {
+  brandPath = kitPathFrom(brandArg, process.cwd());
+  if (!brandPath) { console.error(`브랜드 킷을 찾을 수 없습니다: --brand ${brandArg}`); process.exit(1); }
+  brandSource = "--brand";
+} else if (!brandArg && D.meta && D.meta.brandKit) {
+  brandPath = kitPathFrom(D.meta.brandKit, path.dirname(path.resolve(dataPath)));
+  if (!brandPath) { console.error(`브랜드 킷을 찾을 수 없습니다: meta.brandKit = ${D.meta.brandKit}`); process.exit(1); }
+  brandSource = "meta.brandKit";
+}
+
+// 활성 고객사 선언은 지정이 없을 때의 기본이자, 지정이 있을 때의 대조 기준이다.
+const AC = readActiveCustomer();
+const acKitPath = AC && AC.brand_kit ? kitPathFrom(AC.brand_kit, REF_DIR) : null;
+if (AC && AC.brand_kit && !acKitPath) {
+  console.error(`활성 고객사 '${AC.customer}'의 브랜드 킷을 찾을 수 없습니다: active-customer.json → brand_kit = ${AC.brand_kit}`);
+  console.error(`킷을 만들거나(email-template/_example-brand.json 복제) active-customer.json 의 brand_kit 을 고친 뒤 다시 실행하세요.`);
+  process.exit(1);
+}
+if (!brandPath && !brandArg) {
+  if (acKitPath) { brandPath = acKitPath; brandSource = `활성 고객사 ${AC.customer}`; }
+  else if (!AC) {   // active-customer.json 이 없는 구버전 설치
+    brandPath = activeKitFromGuide();
+    if (brandPath) { brandSource = "_template-guide.md 활성 고객사(레거시)"; console.warn("[brand] 활성 고객사 선언을 reference/active-customer.json 으로 옮기세요(레거시 경로 사용 중)."); }
+  }
+}
+// 브랜드를 명시 지정했는데 활성 고객사 킷과 다르면 — 다른 고객사 브랜드로 나가는 사고를 눈에 보이게 한다.
+if (brandPath && acKitPath && path.resolve(brandPath) !== path.resolve(acKitPath)) {
+  console.warn(`[brand] ⚠️ 활성 고객사(${AC.customer}: ${path.basename(acKitPath)}) 와 다른 브랜드로 생성합니다 → ${path.basename(brandPath)}`);
+}
+if (brandArg === "none" && acKitPath) console.warn(`[brand] --brand none — 활성 고객사(${AC.customer}) 킷을 무시하고 중립 팔레트로 생성합니다.`);
+if (brandArg !== "none" && !brandPath && AC && !AC.brand_kit) {
+  console.warn(`[brand] 활성 고객사 '${AC.customer}'에 브랜드 킷이 없습니다 — 중립 팔레트로 생성합니다. 고객사 전달용이면 email-template/<고객사>.json 을 만들고 active-customer.json 의 brand_kit 에 지정하세요.`);
+}
+const BRAND = brandPath ? JSON.parse(fs.readFileSync(brandPath, "utf8")) : null;
+
+// ---- 색 유틸 (결정적 파생 — 임의 색 생성 아님) ----
+const hx = c => String(c == null ? "" : c).replace(/^#/, "").trim().toUpperCase();
+const ok = c => /^[0-9A-F]{6}$/.test(c);
+const rgb = c => [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
+const hex = a => a.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("").toUpperCase();
+const mixTo = (c, t, tg) => hex(rgb(c).map((v, i) => v + (tg[i] - v) * t));
+const tint = (c, t) => mixTo(c, t, [255, 255, 255]);   // 흰색 쪽으로
+const shade = (c, t) => mixTo(c, t, [0, 0, 0]);        // 검정 쪽으로
+const lum = c => { const [r, g, b] = rgb(c).map(v => v / 255); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const firstFont = stack => {
+  const f = String(stack || "").split(",")[0].replace(/['"]/g, "").trim();
+  return f || null;
+};
+
+// ---- 디자인 토큰 (report-guide §2 SSOT) ----
+// 브랜드 킷이 없으면 아래 중립 기본값(검증 샘플과 동일)을 그대로 쓴다.
+const NEUTRAL = {
+  INK: "1A2238", INK_BG: "141B2E", TEXT: "2B3245", MUTE: "6B7280",
+  LINE: "E5E8EE", CARD: "F7F8FB", ACCENT: "0E9F8E", ACCENT_SOFT: "E7F4F1",
+  ACCENT_DARK: "0B3F39", ACCENT_TEXT: "154A44", WHITE: "FFFFFF",
+  BAR_REST: "B7BFD0",                        // 강조 외 막대
+  TOP_TINT: "F1F8F6", TOP_LINE: "CBE4DE",    // 우선순위 상위 3행
+  CHIP_BG: "F0F2F7",                         // 분모 칩
+  TRACK: "D9DEE8",                           // 스택바 트랙
+  SHADOW: "9AA0AE",                          // 카드 그림자
+  // 다크 슬라이드 전용
+  DK_KICKER: "6FD8C9", DK_META: "8B93A8", DK_LINE: "3A425A",
+  DK_BODY: "C7CCDA", DK_SUB: "B8C0D0", DK_RING: "222C47",
+  DK_STAT: "B9C2D6", DK_STAT_LBL: "6E7891", DK_VALUE: "EEF0F5",
+  FONT: "맑은 고딕",
+};
+
+// 브랜드 킷 → 리포트 토큰 파생 (매핑·계수는 report-guide.md §5 표와 1:1)
+function tokensFromBrand(b) {
+  const R = b.report || {};
+  const C = b.colors || {};
+  const ACCENT = hx(R.accent || C.accent);
+  const INK = hx(R.ink || C.text);
+  if (!ok(ACCENT) || !ok(INK)) {
+    console.error(`브랜드 킷에 리포트 필수 색이 없습니다 (${path.basename(brandPath)}): colors.accent · colors.text(또는 report.accent · report.ink)`);
+    process.exit(1);
+  }
+  // 대비 가드 — 밝은 색이 INK/ACCENT로 들어오면 슬라이드 가독성이 깨지므로 경고한다.
+  if (lum(INK) > 0.45) console.warn(`[brand] INK(기본 colors.text=#${INK})가 밝아 제목·다크 슬라이드 대비가 낮습니다 — report.ink 에 진한 브랜드 컬러를 지정하세요.`);
+  if (lum(ACCENT) > 0.72) console.warn(`[brand] ACCENT(#${ACCENT})가 밝아 흰 글자(순위 칩·CTA) 대비가 낮습니다 — report.accent 에 진한 톤을 지정하세요.`);
+  const INK_BG = ok(hx(R.ink_bg)) ? hx(R.ink_bg) : shade(INK, 0.20);
+  const MUTE = ok(hx(C.muted)) ? hx(C.muted) : tint(INK, 0.45);
+  const t = {
+    INK, INK_BG, TEXT: tint(INK, 0.10), MUTE,
+    LINE: tint(INK, 0.90), CARD: tint(INK, 0.965), CHIP_BG: tint(INK, 0.94),
+    TRACK: tint(INK, 0.84), BAR_REST: tint(INK, 0.70), SHADOW: tint(INK, 0.60),
+    ACCENT, ACCENT_SOFT: tint(ACCENT, 0.90), ACCENT_DARK: shade(ACCENT, 0.60),
+    ACCENT_TEXT: shade(ACCENT, 0.52), TOP_TINT: tint(ACCENT, 0.955), TOP_LINE: tint(ACCENT, 0.80),
+    WHITE: "FFFFFF",
+    DK_KICKER: tint(ACCENT, 0.42), DK_META: tint(INK_BG, 0.53), DK_LINE: tint(INK_BG, 0.18),
+    DK_BODY: tint(INK_BG, 0.78), DK_SUB: tint(INK_BG, 0.73), DK_RING: tint(INK_BG, 0.08),
+    DK_STAT: tint(INK_BG, 0.74), DK_STAT_LBL: tint(INK_BG, 0.42), DK_VALUE: tint(INK_BG, 0.93),
+    FONT: R.font || firstFont(b.font_stack) || NEUTRAL.FONT,
+  };
+  // report.tokens 로 개별 토큰 직접 지정 가능 (파생값을 쓰지 않고 브랜드 지정값을 쓸 때)
+  Object.entries(R.tokens || {}).forEach(([k, v]) => { if (ok(hx(v))) t[k] = hx(v); });
+  return t;
+}
+
+const T = BRAND ? tokensFromBrand(BRAND) : NEUTRAL;
+const {
+  INK, INK_BG, TEXT, MUTE, LINE, CARD, ACCENT, ACCENT_SOFT, ACCENT_DARK, ACCENT_TEXT,
+  WHITE, BAR_REST, TOP_TINT, TOP_LINE, CHIP_BG, TRACK, SHADOW,
+  DK_KICKER, DK_META, DK_LINE, DK_BODY, DK_SUB, DK_RING, DK_STAT, DK_STAT_LBL, DK_VALUE,
+} = T;
+const F = T.FONT;
+
+// 표지 로고: data.json meta.logo 가 없으면 브랜드 킷 report.logo(로컬 경로) 사용
+if (!D.meta.logo && BRAND && BRAND.report && BRAND.report.logo && BRAND.report.logo.path) {
+  const L = BRAND.report.logo;
+  const lp = path.resolve(path.dirname(brandPath), L.path);
+  if (fs.existsSync(lp)) D.meta.logo = Object.assign({}, L, { path: lp });
+  else console.warn(`[brand] report.logo.path 파일 없음 — 표지 로고 생략: ${L.path}`);
+}
+console.log(BRAND
+  ? `[brand] ${BRAND.brand_name || path.basename(brandPath, ".json")} (${brandSource}: ${path.basename(brandPath)}) · accent #${ACCENT} · font ${F}`
+  : "[brand] 브랜드 킷 없음 — 중립 기본 팔레트로 생성");
+if (BRAND && !D.meta.logo) console.warn("[brand] 표지 로고 미주입 — meta.logo 또는 브랜드 킷 report.logo(로컬 파일)를 지정하면 표지에 들어갑니다.");
+
 const W = 13.333, H = 7.5, MX = 0.7, CW = W - 2 * MX;
 const FOOT_Y = 7.06;
 
@@ -32,7 +177,7 @@ const p = new pptxgen();
 p.defineLayout({ name: "WIDE", width: W, height: H });
 p.layout = "WIDE";
 
-const shadow = () => ({ type: "outer", color: "9AA0AE", blur: 8, offset: 3, angle: 90, opacity: 0.10 });
+const shadow = () => ({ type: "outer", color: SHADOW, blur: 8, offset: 3, angle: 90, opacity: 0.10 });
 const num = n => n.toLocaleString("en-US");
 
 // ---- 공통 요소 ----
@@ -66,7 +211,7 @@ function insightBox(s, x, y, w, h, text) {
   s.addShape(p.ShapeType.roundRect, { x, y, w, h, rectRadius: 0.08, fill: { color: ACCENT_SOFT }, line: { color: ACCENT_SOFT, width: 0 } });
   s.addText([
     { text: "해석.  ", options: { bold: true, color: ACCENT_DARK } },
-    { text, options: { color: "154A44" } },
+    { text, options: { color: ACCENT_TEXT } },
   ], { x: x + 0.28, y: y + 0.1, w: w - 0.56, h: h - 0.2, fontFace: F, fontSize: 11.5, lineSpacing: 16, valign: "middle", margin: 0 });
 }
 // 동심원 모티프 (다크 슬라이드 시각 앵커)
@@ -101,7 +246,7 @@ function rings(s, cx, cy, sizes, dotAngleY) {
   meta.forEach(([k, v], i) => {
     const x = MX + i * 2.85;
     s.addText(k, { x, y: 5.96, w: 2.6, h: 0.28, fontFace: F, fontSize: 10.5, color: DK_META, charSpacing: 1, margin: 0 });
-    s.addText(v, { x, y: 6.26, w: 2.6, h: 0.4, fontFace: F, fontSize: 17, bold: true, color: "EEF0F5", margin: 0 });
+    s.addText(v, { x, y: 6.26, w: 2.6, h: 0.4, fontFace: F, fontSize: 17, bold: true, color: DK_VALUE, margin: 0 });
   });
 }
 

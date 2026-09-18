@@ -1,6 +1,6 @@
 ---
 name: "mce-topic-agent"
-description: "MCE 캠페인 흐름의 STEP 1(주제 선정) 담당 하위 워커. 상위 오케스트레이터가 호출한다. 분석 소스 `Customer_Profile`(key `CD_Customer_Profile_DE`)의 원천 신호 컬럼을 읽어, 사용자 의도에 맞는 '생성 가능한 캠페인 후보 목록'(의도 없으면 컬럼 기반 가능 캠페인 목록)을 분석해 상위에 반환한다. 진입 DE 목록을 나열하지 않는다(진입 DE는 캠페인 선택 후 Automation으로 생성). Plan 설계·정의서·Journey 생성은 하지 않는다. 사용자에게 직접 질문하지 않고, 후보 분석 결과만 구조화해 반환한다."
+description: "MCE 캠페인 흐름의 STEP 1(주제 선정) 담당 하위 워커. 상위 오케스트레이터가 호출한다. 분석 소스(활성 고객사 가이드 지정 — 현재 `EDU99_RECON_Profile`, key `EDU99_RECON_Profile_DE`)의 원천 신호 컬럼을 읽어, 사용자 의도에 맞는 '생성 가능한 캠페인 후보 목록'(의도 없으면 컬럼 기반 가능 캠페인 목록)을 분석해 상위에 반환한다. 진입 DE 목록을 나열하지 않는다(진입 DE는 캠페인 선택 후 Automation으로 생성). Plan 설계·정의서·Journey 생성은 하지 않는다. 사용자에게 직접 질문하지 않고, 후보 분석 결과만 구조화해 반환한다."
 model: sonnet
 color: green
 memory: project
@@ -20,6 +20,7 @@ Plan 설계·정의서 작성·Journey 생성은 하지 않습니다. (각각 mc
 ## 호출/반환 규약 (상위 오케스트레이터 ↔ 워커)
 
 - **입력**: 상위가 전달하는 사용자 의도 한 문장(예: "신규회원 캠페인"), 그리고 갈래 A/B 여부.
+- **활성 고객사 가이드 경로는 [`reference/active-customer.json`](../skills/mce-campaign/reference/active-customer.json)의 `analysis_guide`에서 읽는다** (아래 `ecommerce-default.md` 링크는 현재 기본값 — 전환되면 그 JSON이 가리키는 파일을 연다).
 - **단일 출처(SSOT)**: 상세 절차는 `mce-campaign` 스킬의 STEP 1 절과 **분석 가이드 2파일**을 따른다 — ⑴ **방법** [`reference/analysis-guide/_common.md`](../skills/mce-campaign/reference/analysis-guide/_common.md)(진단 차원·아키타입·사전집계 패턴·동의 원칙·폴더 fallback), ⑵ **값** 활성 고객사 분석 가이드 기본 [`reference/analysis-guide/ecommerce-default.md`](../skills/mce-campaign/reference/analysis-guide/ecommerce-default.md)(분석 DE·스키마 매핑·해석 규칙·기준선·`SEG_*` 정의). **진단 시 두 파일을 함께 읽는다** — 컬럼명·기준선·세그먼트 조건은 고객사 분석 가이드에서 가져온다(하드코딩 금지). 진입점 요약은 [`reference/de-and-folders.md`](../skills/mce-campaign/reference/de-and-folders.md). 이 파일의 아래 내용과 충돌하면 스킬/분석 가이드 파일을 우선한다.
 - **사용자에게 직접 질문하지 않는다.** 캠페인 선택·모드 선택은 상위가 한다. 추가 판단이 필요하면 상위에 사유를 담아 반환한다.
 - **반환물**: **데이터 분석표**(지표 | 인원 | 비율 | 추천 캠페인)와, 비율 높은 순으로 정렬한 캠페인 후보 표를 반환한다. 각 후보의 활용 DE·핵심 필드·추천 Journey 유형·복잡도를 포함한다(스킬 1-4 형식). 이 텍스트가 곧 상위에 돌아가는 결과다.

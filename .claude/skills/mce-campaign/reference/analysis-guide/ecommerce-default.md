@@ -17,22 +17,22 @@
 
 ## 1. 분석 소스 + 스키마 (AI가 쿼리를 짤 때 쓰는 "재료")
 
-> ⭐ **이 고객사 원천은 다중 엔티티(정규화된 여러 테이블)다.** 진단은 이들을 JOIN·집계해 만든 **고객 프로파일 DE(`RECON_Profile`)** 위에서 수행한다(빌드 방법 = [`_common.md`](_common.md) §6-0). 진단 `SEG_*`와 STEP 1은 이 프로파일을 읽는다.
+> ⭐ **이 고객사 원천은 다중 엔티티(정규화된 여러 테이블)다.** 진단은 이들을 JOIN·집계해 만든 **고객 프로파일 DE(`EDU99_RECON_Profile`)** 위에서 수행한다(빌드 방법 = [`_common.md`](_common.md) §6-0). 진단 `SEG_*`와 STEP 1은 이 프로파일을 읽는다.
 
-**원천 엔티티 (다중 테이블 — 위치 `Data Extensions > test > mce-package`, categoryId 93897):**
+**원천 엔티티 (다중 테이블 — 위치 `Data Extensions > EDU_260918 > 01_RAW(원천)`, categoryId 98231):**
 
 | 엔티티 | DE Key | 조인키 | 도출되는 파생값 |
 |---|---|---|---|
-| 고객 | `RAW_Customers_DE` | member_id (PK) | (직접) 로그인·동의·장바구니·생일·등급·포인트 등 |
-| 구매마스터 | `RAW_Orders_DE` | order_id (PK), member_id | `order_count`·`total_spent`·`last_order_date` |
-| 구매상세 | `RAW_OrderDetails_DE` | detail_id (PK), order_id, product_id | (제품 조인) `preferred_category` |
-| 제품 | `RAW_Products_DE` | product_id (PK) | 카테고리 |
-| 쿠폰 | `RAW_Coupons_DE` | coupon_id (PK), member_id | `unused_coupon_count` |
+| 고객 | `EDU99_RAW_Customers_DE` | member_id (PK) | (직접) 로그인·동의·장바구니·생일·등급·포인트 등 |
+| 구매마스터 | `EDU99_RAW_Orders_DE` | order_id (PK), member_id | `order_count`·`total_spent`·`last_order_date` |
+| 구매상세 | `EDU99_RAW_OrderDetails_DE` | detail_id (PK), order_id, product_id | (제품 조인) `preferred_category` |
+| 제품 | `EDU99_RAW_Products_DE` | product_id (PK) | 카테고리 |
+| 쿠폰 | `EDU99_RAW_Coupons_DE` | coupon_id (PK), member_id | `unused_coupon_count` |
 
 - **관계**: 고객 1:N 주문, 주문 1:N 상세, 상세 N:1 제품, 고객 1:N 쿠폰. Contact Key = `member_id`.
-- **분석 base(진단 소스) = `RECON_Profile`** — Key `RECON_Profile_DE`, id `<확인필요: 생성 후 조회>`, categoryId `<확인필요>`. 위 5테이블을 JOIN·집계해 **1행=1고객**으로 통합한 프로파일. 빌드 쿼리 = `BUILD_RECON_Profile`(§6-0 패턴), rowCount = 적재 후 확인.
+- **분석 base(진단 소스) = `EDU99_RECON_Profile`** — Key `EDU99_RECON_Profile_DE`, id `<확인필요: 생성 후 조회>`, categoryId `<확인필요: EDU_260918 하위 진단 폴더 생성 후>`. 위 5테이블을 JOIN·집계해 **1행=1고객**으로 통합한 프로파일. 빌드 쿼리 = `EDU99_BUILD_RECON_Profile`(§6-0 패턴), rowCount = 적재 후 확인.
   - **현재 materialize된 컬럼(11)**: `member_id`, `order_count`, `total_spent`, `last_order_date`, `preferred_category`, `unused_coupon_count`, `last_login_date`, `email_consent`, `sms_consent`, `has_abandoned_cart`, `cart_total_amount` → **핵심 진단 6캠페인(2차구매·이탈·휴면·동의·장바구니·미전환) 커버**.
-  - **확장 컬럼(생일·등급·쿠폰/포인트 만료 캠페인용)**: `birthday`·`grade`·`region`·`signup_date`·`points_balance`·`points_expire_date`는 `RAW_Customers`에, `coupon_expire_date`(MIN 미사용)는 `RAW_Coupons`에 있으므로, 해당 캠페인이 필요할 때 `BUILD_RECON_Profile`에 승계 컬럼으로 추가한다.
+  - **확장 컬럼(생일·등급·쿠폰/포인트 만료 캠페인용)**: `birthday`·`grade`·`region`·`signup_date`·`points_balance`·`points_expire_date`는 `EDU99_RAW_Customers`에, `coupon_expire_date`(MIN 미사용)는 `EDU99_RAW_Coupons`에 있으므로, 해당 캠페인이 필요할 때 `EDU99_BUILD_RECON_Profile`에 승계 컬럼으로 추가한다.
   - *(2026-07-03 다중 엔티티로 전환. 이전엔 단일 평탄화 DE `Customer_Profile`(CD_Customer_Profile_DE)을 직접 사용. RECON_Profile은 그것과 파생값 **완전 일치** — 10만 전수 대조 불일치 **0**으로 검증됨.)*
 - ⚠️ **신호는 플래그로 저장하지 않는다** — `is_dormant` 같은 Boolean을 두지 않고 원천 날짜·수치만 두며, 대상 판정은 **쿼리가 계산**한다([`_common.md`](_common.md) 2절).
 
@@ -131,38 +131,38 @@
 > ⭐ 특정/커스텀 세그먼트는 이 목록에 없어도 AI가 §1+§2로 즉석 생성한다(STEP 1-6 발송 DE도 마찬가지).
 > ※ 이미 계정에 존재하는 `SEG_*`는 이 예시 세트가 이전에 생성된 것이다(재생성 말고 rowCount만 읽음 — [`_common.md`](_common.md) 6-1).
 
-카운트 DE 위치: **`Data Extensions > test > mce-package`** (categoryId `93897`). **member_id 1컬럼·비-sendable**, rowCount=인원. **발송 DE 아님.**
+카운트 DE 위치: **`Data Extensions > EDU_260918`** 하위 진단 폴더 (categoryId `<확인필요: 폴더 생성 후 조회>`). **member_id 1컬럼·비-sendable**, rowCount=인원. **발송 DE 아님.**
 
 | 세그먼트 | 카운트 DE Key | 근거 지표(§2) |
 |---|---|---|
-| 1회성 구매자 | `SEG_repeat_buyer_DE` | 1회성 구매자 |
-| 구매자(이탈 분모) | `SEG_buyers_DE` | 구매자 |
-| 이탈위험 | `SEG_churn_DE` | 이탈위험 |
-| 휴면 | `SEG_dormant_DE` | 휴면 |
-| 첫구매 미전환 | `SEG_noconv_DE` | 첫구매 미전환 |
-| 장바구니 이탈 | `SEG_cart_DE` | 장바구니 이탈 |
-| 미동의 | `SEG_noconsent_DE` | 미동의 |
+| 1회성 구매자 | `EDU99_SEG_repeat_buyer_DE` | 1회성 구매자 |
+| 구매자(이탈 분모) | `EDU99_SEG_buyers_DE` | 구매자 |
+| 이탈위험 | `EDU99_SEG_churn_DE` | 이탈위험 |
+| 휴면 | `EDU99_SEG_dormant_DE` | 휴면 |
+| 첫구매 미전환 | `EDU99_SEG_noconv_DE` | 첫구매 미전환 |
+| 장바구니 이탈 | `EDU99_SEG_cart_DE` | 장바구니 이탈 |
+| 미동의 | `EDU99_SEG_noconsent_DE` | 미동의 |
 
-- **Automation**: `CP_DIAGNOSIS_AUTOMATION` — 매일 03:00 KST에 위 세트를 Overwrite 집계. (없으면 [`_common.md`](_common.md) 6절이 §2 정의로부터 SQL·DE·Automation을 자동 생성)
-- **생성 SQL 형태**: `SELECT member_id FROM Customer_Profile WHERE <§2 정의로 조립한 조건>` — **Contact Key 1컬럼만**, Overwrite. raw 다중 컬럼 SELECT 금지.
-- **전체 모수** = `Customer_Profile` rowCount, **구매자 모수** = `SEG_buyers_DE` rowCount.
+- **Automation**: `EDU99_CP_DIAGNOSIS_AUTOMATION` — 매일 03:00 KST에 위 세트를 Overwrite 집계. (없으면 [`_common.md`](_common.md) 6절이 §2 정의로부터 SQL·DE·Automation을 자동 생성)
+- **생성 SQL 형태**: `SELECT member_id FROM EDU99_RECON_Profile WHERE <§2 정의로 조립한 조건>` — **Contact Key 1컬럼만**, Overwrite. raw 다중 컬럼 SELECT 금지.
+- **전체 모수** = `EDU99_RECON_Profile` rowCount, **구매자 모수** = `EDU99_SEG_buyers_DE` rowCount.
 - 읽기·자동생성 절차는 [`_common.md`](_common.md) 3·6절.
 
 ---
 
 ## 5. 진입(발송) DE / 폴더 매핑 (저니 진입 레이어)
 
-캠페인 선택 후 AI가 `Customer_Profile`을 **§2 정의 + 동의 필터로 조립한 쿼리**로 필터해 진입 DE를 채운다(SKILL.md STEP 1-6). 저니는 이 진입 DE에서 진입한다.
+캠페인 선택 후 AI가 `EDU99_RECON_Profile`을 **§2 정의 + 동의 필터로 조립한 쿼리**로 필터해 진입 DE를 채운다(SKILL.md STEP 1-6). 저니는 이 진입 DE에서 진입한다.
 
-> ⚠️ **아래 폴더 categoryId(93373~93377, 93869)는 미검증** — §1과 같은 사유로 현재 BU에 실재하는지 확인되지 않았다. 실제 진입 DE 생성 전 **라이브 폴더 조회로 categoryId를 확인**하고 갱신한다.
+> ⚠️ **아래 폴더 categoryId는 미지정** — EDU99 전환으로 진입 DE 폴더를 아직 만들지 않았다. 실제 진입 DE 생성 전 **라이브 폴더 조회로 categoryId를 확인**하고 갱신한다.
 
-| 의도 | 진입 DE명(예) | DE Key(예) | categoryId(미검증) |
+| 의도 | 진입 DE명(예) | DE Key(예) | categoryId(미지정) |
 |---|---|---|---|
-| 신규 회원 | 신규회원_웰컴 | `WELCOME_ENTRY_DE` | `93373` |
-| 이탈/재활성화 | 이탈고객_재활성화 | `CHURN_ENTRY_DE` | `93374` |
-| 장바구니 이탈 | 장바구니_이탈 | `CART_ABANDON_ENTRY_DE` | `93375` |
-| 생일 | 생일_쿠폰 | `BIRTHDAY_ENTRY_DE` | `93376` |
-| 쿠폰/프로모션 | 쿠폰_친구추가 | `COUPON_FRIEND_ENTRY_DE` | `93377` |
+| 신규 회원 | 신규회원_웰컴 | `EDU99_WELCOME_ENTRY_DE` | `<확인필요>` |
+| 이탈/재활성화 | 이탈고객_재활성화 | `EDU99_CHURN_ENTRY_DE` | `<확인필요>` |
+| 장바구니 이탈 | 장바구니_이탈 | `EDU99_CART_ABANDON_ENTRY_DE` | `<확인필요>` |
+| 생일 | 생일_쿠폰 | `EDU99_BIRTHDAY_ENTRY_DE` | `<확인필요>` |
+| 쿠폰/프로모션 | 쿠폰_친구추가 | `EDU99_COUPON_FRIEND_ENTRY_DE` | `<확인필요>` |
 
 ---
 

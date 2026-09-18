@@ -1,0 +1,8 @@
+{
+  "_comment": "활성 고객사 선언 — 이 파일 하나가 시스템 전체의 단일 스위치다. 분석 가이드(값)와 브랜드 킷(색·폰트·로고)을 여기서 지정하며, SKILL.md·_template-guide.md 등 다른 문서에는 고객사명을 중복 기재하지 않는다. 고객사 전환은 오케스트레이터가 사용자 확인 후 이 파일만 고친다(워커 임의 변경 금지). 경로는 이 파일이 있는 reference/ 기준 상대경로.",
+  "customer": "ecommerce-default",
+  "analysis_guide": "analysis-guide/ecommerce-default.md",
+  "brand_kit": null,
+  "updated": "2026-09-18",
+  "_note": "brand_kit이 null이면 리포트는 중립 팔레트로 생성되고 이메일은 브랜드 값을 사용자에게 받아야 한다. 실제 고객사 전환 시: ① analysis-guide/<고객사>.md 생성(STEP 0 자동) ② email-template/<고객사>.json 생성(_example-brand.json 복제) ③ 이 파일의 customer·analysis_guide·brand_kit·updated 갱신."
+}

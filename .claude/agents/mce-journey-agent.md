@@ -26,6 +26,9 @@ tools: Read, Write, Edit, Glob, Grep, Bash, PowerShell, mcp__sf-mce-mcp__sfmc_cr
 
 ## SFMC 고정값 — ⚠️ 활성 고객사 분석 가이드 §7에서 읽는다 (BU별로 다름)
 
+> 활성 가이드 파일 경로는 [`reference/active-customer.json`](../skills/mce-campaign/reference/active-customer.json)의 `analysis_guide`. 아래 링크는 현재 기본값이다.
+> 이메일 에셋을 새로 만들 땐 같은 JSON의 `brand_kit`을 브랜드 값으로 쓴다(없으면 중립 예시 색으로 만들지 말고 상위에 보고).
+
 빌드 공통 규칙은 [`reference/journey-build.md`](../skills/mce-campaign/reference/journey-build.md)·[`reference/fixed-values.md`](../skills/mce-campaign/reference/fixed-values.md)를 따르되, **아래 BU 고정값은 활성 고객사 분석 가이드 [`reference/analysis-guide/ecommerce-default.md`](../skills/mce-campaign/reference/analysis-guide/ecommerce-default.md) §7** 에서 읽는다(하드코딩 금지 — 고객사가 바뀌면 그 파일 §7만 교체).
 
 ⛔ **아래 값을 그대로 쓰기 전에 `sfmc_get_send_classifications`·`sfmc_get_sender_profiles`·`sfmc_get_lists`로 현재 BU 실제 값을 확인한다.** 이 GUID들은 BU 종속이며, 다른 BU 값을 쓰면 저니가 발행·발송되지 않는다(2026-08-18 사고 — `error-log.md` 참조).

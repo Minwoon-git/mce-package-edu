@@ -34,7 +34,7 @@
 
 스킬 본문: [`.claude/skills/mce-campaign/SKILL.md`](.claude/skills/mce-campaign/SKILL.md)
 참조 데이터: `.claude/skills/mce-campaign/reference/` (저니 페이로드·이메일 표준·고정값·오류 학습)
-**분석 가이드(2층·3에이전트 이원화)**: `reference/analysis-guide/_common.md`(공통 방법 — 컬럼 프로파일링→캠페인 도출, 사전집계, 부트스트랩) + `reference/analysis-guide/ecommerce-default.md`(활성 고객사 값 — 분석 §1·2, 기획 §6, 전이 §7). ⭐ **MD는 "의미 사전"이지 쿼리·캠페인 카탈로그가 아니다** — 캠페인 목록·기준선·측정 세그먼트는 AI가 마스터 DE를 프로파일링해 스스로 정한다(§3·§4는 예시). 새 고객사는 `analysis-guide/<고객사>.md` 한 개만 추가하고 SKILL.md의 "활성 고객사" 줄만 바꾼다.
+**분석 가이드(2층·3에이전트 이원화)**: `reference/analysis-guide/_common.md`(공통 방법 — 컬럼 프로파일링→캠페인 도출, 사전집계, 부트스트랩) + `reference/analysis-guide/ecommerce-default.md`(활성 고객사 값 — 분석 §1·2, 기획 §6, 전이 §7). ⭐ **MD는 "의미 사전"이지 쿼리·캠페인 카탈로그가 아니다** — 캠페인 목록·기준선·측정 세그먼트는 AI가 마스터 DE를 프로파일링해 스스로 정한다(§3·§4는 예시). 새 고객사는 `analysis-guide/<고객사>.md` 한 개만 추가하고 **[`reference/active-customer.json`](.claude/skills/mce-campaign/reference/active-customer.json) 한 파일만** 바꾼다(고객사·분석 가이드·브랜드 킷 단일 스위치).
 
 ---
 
@@ -80,7 +80,7 @@
    ▼ (상위가 호출)  Agent → mce-schema-agent  ── STEP 0-A: 스키마 파일(DDL/CSV) 분석 → 매핑표·조인키 + HITL 확인목록 반환
    ├─ [핵심 컬럼 확인] 상위가 AskUserQuestion (핵심 ID·총구매액 산식·취소환불 제외·동의값 해석)
    ▼ (상위가 호출)  Agent → mce-schema-agent  ── STEP 0-B: 빈 RAW DE(원본 컬럼명) + 활성 고객사 가이드 MD 자동생성 + CSV 업로드 안내 반환
-   ├─ 상위가 활성 고객사 전환 확인(AskUserQuestion) → SKILL.md/CLAUDE.md 활성 고객사 줄 갱신
+   ├─ 상위가 활성 고객사 전환 확인(AskUserQuestion) → reference/active-customer.json 갱신
    ▼ ⏳ 데이터 적재 게이트 (사용자가 SFMC UI에서 CSV 업로드 → RAW DE 적재 → 이후 STEP 1 가능)
 
 사용자 한 문장
@@ -103,7 +103,7 @@
 - **사용자와의 모든 대화·질문·승인은 상위 에이전트만** 한다. 하위 에이전트는 사용자에게 질문하지 않는다(질문이 필요하면 상위에 반환하고 상위가 묻는다).
 - 상위는 각 하위 호출 시 **그 STEP에 필요한 입력**(선택된 캠페인·DE/필드·확정 Plan 값·실행 모드·정의서 경로 등)을 프롬프트에 모두 담아 전달한다.
 - 하위가 반환한 결과(후보 목록·정의서 경로·Journey ID 등)는 상위가 보관하여 다음 하위 호출의 입력으로 넘긴다.
-- **⓪ 신규 고객사 온보딩(스키마 파일 첨부 / 활성 고객사 가이드·RAW DE 없음)** 이면 STEP 1 전에 상위가 **STEP 0(스키마 분석)** 을 태운다: `mce-schema-agent`를 **2번** 호출한다 — Phase A(분석→매핑표+HITL 목록 반환) → 상위가 `AskUserQuestion`으로 핵심 컬럼 확정(핵심 ID·총구매액 산식·취소환불 제외·동의값) → Phase B(빈 RAW DE(원본 컬럼명) + `analysis-guide/<고객사>.md` 자동생성 + CSV 업로드 안내). 이후 상위가 활성 고객사 전환을 확인해 SKILL.md/CLAUDE.md 활성 고객사 줄을 갱신한다. **STEP 0의 산출물은 매핑표·빈 RAW DE·가이드 MD까지다.** (적재는 사용자가 CSV 업로드로 수행) (분석 리포트(PPT)는 데이터 적재 후 사용자가 요청할 때만 생성) (상세: `mce-campaign` 스킬 STEP 0 절 + `reference/schema-mapping.md`)
+- **⓪ 신규 고객사 온보딩(스키마 파일 첨부 / 활성 고객사 가이드·RAW DE 없음)** 이면 STEP 1 전에 상위가 **STEP 0(스키마 분석)** 을 태운다: `mce-schema-agent`를 **2번** 호출한다 — Phase A(분석→매핑표+HITL 목록 반환) → 상위가 `AskUserQuestion`으로 핵심 컬럼 확정(핵심 ID·총구매액 산식·취소환불 제외·동의값) → Phase B(빈 RAW DE(원본 컬럼명) + `analysis-guide/<고객사>.md` 자동생성 + CSV 업로드 안내). 이후 상위가 활성 고객사 전환을 확인해 `reference/active-customer.json`(고객사·분석 가이드·브랜드 킷 단일 스위치)을 갱신한다. **STEP 0의 산출물은 매핑표·빈 RAW DE·가이드 MD까지다.** (적재는 사용자가 CSV 업로드로 수행) (분석 리포트(PPT)는 데이터 적재 후 사용자가 요청할 때만 생성) (상세: `mce-campaign` 스킬 STEP 0 절 + `reference/schema-mapping.md`)
 - **정의서를 사용자가 직접 첨부**한 경우 STEP 1·2를 건너뛰고 곧바로 `mce-journey-agent`(STEP 3)만 호출한다.
 - **읽기 전용 조회**(저니/DE/이메일 목록 등)는 위임하지 않고 **상위 에이전트가 직접** SFMC MCP를 호출해 답한다(아래 전역 규칙).
 - **📨 메시지 채널이 알림톡/문자/카카오/SMS이면** STEP 2 위임 전에 상위가 **"채널 해소(seq 확보)"** 를 직접 수행한다: ① 현재 BU 알림톡 저니에서 `applicationExtensionKey`·`send_key` 확인 → ② `send_key`로 micrm **`mobileList.ajax`(모바일 컨텐츠 목록)** 를 **브라우저(Claude in Chrome)** 로 조회 → ③ seq 선택(자동=의도매칭/수동=후보제시. **저니에 넣는 seq=모바일 컨텐츠 seq**, `atTmplLst`의 알림톡 템플릿 id 아님) → ④ 변수↔DE 매핑. 이 값(seq·키·변수매핑)을 planning 워커에 넘겨 정의서에 기록하게 한다. **워커는 micrm 웹세션에 접근 못 하므로 seq 조회를 위임하지 않는다.** (상세: `mce-campaign` 스킬 "메시지 채널 해소" 절 + `reference/journey-build.md` ④)
