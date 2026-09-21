@@ -13,15 +13,51 @@
  *   5) COUPON_ISSUE 쿠폰 발급
  *
  * 스키마 출처: docs/onboarding-kit/작성예시_어반몰/ERD_urbanmall.svg 와 완전 동일
- * 실행: node generate_urbanmall_dataset.js
- * 출력: 이 파일과 같은 폴더에 *.csv (UTF-8, no BOM)
+ * 실행: node generate_urbanmall_dataset.js [--profile=EDU01|EDU02]
+ * 출력: --profile 이 없으면 이 폴더, 있으면 test_data/<프로필>/ 에 *.csv (UTF-8, no BOM)
+ *       + 진단기대값.md (그 데이터셋의 STEP 1 정답지)
  */
 
 const fs = require('fs');
 const path = require('path');
 
+// ── 실행 옵션 — 교육생별 데이터셋 분리 ───────────────────────────
+// node generate_urbanmall_dataset.js                 → 어반몰 원본(이 폴더에 덮어쓰기)
+// node generate_urbanmall_dataset.js --profile=EDU01 → ../../../test_data/EDU01/
+// node generate_urbanmall_dataset.js --profile=EDU02 → ../../../test_data/EDU02/
+// 개별 지정: --seed=<정수> --idbase=<정수> --mailtag=<문자> --hpbase=<정수> --out=<경로>
+//
+// ⚠️ 왜 ID 공간까지 어긋나게 두는가 —
+//    교육생이 같은 BU를 쓰면 DE 이름은 접두어(EDU01_/EDU02_)로 갈라지지만
+//    Contact Key(MBR_ID)·이메일·휴대폰은 **All Contacts 에서 하나로 합쳐진다.**
+//    그래서 프로필마다 회원ID·이메일·번호 대역을 통째로 다르게 잡는다.
+const PROFILES = {
+  BASE:  { seed: 20260904, idbase:   20000, mailtag: 'um',  hpbase:    0, out: '.' },
+  EDU01: { seed: 20260111, idbase: 1020000, mailtag: 'e1-', hpbase: 3000, out: '../../../test_data/EDU01' },
+  EDU02: { seed: 20260222, idbase: 2020000, mailtag: 'e2-', hpbase: 6000, out: '../../../test_data/EDU02' }
+};
+const ARGS = {};
+for (const a of process.argv.slice(2)) {
+  const m = /^--([a-z]+)=(.+)$/.exec(a);
+  if (m) ARGS[m[1]] = m[2];
+  else { console.error(`알 수 없는 인자: ${a}`); process.exit(1); }
+}
+const PROFILE = (ARGS.profile || 'BASE').toUpperCase();
+if (!PROFILES[PROFILE]) {
+  console.error(`알 수 없는 --profile=${PROFILE}  (가능: ${Object.keys(PROFILES).join(', ')})`);
+  process.exit(1);
+}
+const CFG = Object.assign({}, PROFILES[PROFILE]);
+if (ARGS.seed)    CFG.seed    = Number(ARGS.seed);
+if (ARGS.idbase)  CFG.idbase  = Number(ARGS.idbase);
+if (ARGS.mailtag) CFG.mailtag = ARGS.mailtag;
+if (ARGS.hpbase)  CFG.hpbase  = Number(ARGS.hpbase);
+if (ARGS.out)     CFG.out     = ARGS.out;
+const OUT_DIR = path.resolve(__dirname, CFG.out);
+fs.mkdirSync(OUT_DIR, { recursive: true });
+
 // ── 재현 가능한 난수 (LCG) ────────────────────────────────────────
-let _seed = 20260904;
+let _seed = CFG.seed;
 function rnd() {
   _seed = (_seed * 1664525 + 1013904223) % 4294967296;
   return _seed / 4294967296;
@@ -117,15 +153,15 @@ const GRADE_BY_SPEND = (amt) => amt >= 2000000 ? 'VIP' : amt >= 600000 ? 'GOLD' 
 
 const members = [];
 for (let i = 1; i <= N_MEMBER; i++) {
-  const mbrId = 20000 + i;                                  // BIGINT, 작성예시(20001~)와 연속
+  const mbrId = CFG.idbase + i;                             // BIGINT — 프로필마다 대역이 다르다
   const birth = new Date(Date.UTC(ri(1968, 2008), ri(0, 11), ri(1, 28)));
   const reg = randDateSkewRecent(START, addD(TODAY, -1));
   // 활동성 페르소나 — 진단이 의미를 갖도록 약점 구간을 의도적으로 배분
   const persona = wpick([['DORMANT', 22], ['LIGHT', 34], ['REGULAR', 26], ['HEAVY', 13], ['NEW', 5]]);
   members.push({
     MBR_ID: mbrId,
-    MBR_EMAIL: `um${String(i).padStart(5, '0')}@${wpick(EMAIL_DOMAIN)}`,
-    HP_NO: `010-0000-${String(i).padStart(4, '0')}`,         // 미할당 국번(발송 불가) — 의도적
+    MBR_EMAIL: `${CFG.mailtag}${String(i).padStart(5, '0')}@${wpick(EMAIL_DOMAIN)}`,
+    HP_NO: `010-0000-${String(CFG.hpbase + i).padStart(4, '0')}`,  // 미할당 국번(발송 불가) — 의도적
     BIRTH_YMD: d2s(birth),
     MBR_GRD: 'BASIC',                                        // 주문 생성 후 재계산
     ADDR_CITY: wpick(CITY),
@@ -261,7 +297,7 @@ function toCsv(rows, cols) {
   return out.join('\n') + '\n';
 }
 function write(file, rows, cols) {
-  fs.writeFileSync(path.join(__dirname, file), toCsv(rows, cols), 'utf8');
+  fs.writeFileSync(path.join(OUT_DIR, file), toCsv(rows, cols), 'utf8');
   console.log(`${file.padEnd(18)} ${String(rows.length).padStart(7)} rows  (${cols.length} cols)`);
 }
 
@@ -273,24 +309,87 @@ write('ORDER_ITEM.csv', orderItems, ['ORDER_ITEM_SEQ', 'ORDER_ID', 'ITEM_CD', 'O
 write('COUPON_ISSUE.csv', coupons, ['COUPON_ID', 'MBR_ID', 'ISSUE_YMD', 'EXPIRE_YMD', 'USED_YN']);
 
 // ── 요약 통계 (STEP 1 진단 기대값) ───────────────────────────────
+// 이 표가 곧 교육생용 "정답지"다. 적재 후 STEP 1 진단값이 여기서 크게 벗어나면 적재가 잘못된 것.
 const cnt = (arr, f) => arr.filter(f).length;
-const pct = (n) => `${n.toLocaleString()} (${(n / N_MEMBER * 100).toFixed(1)}%)`;
 const validCoupon = coupons.filter(c => c.USED_YN === 'N' && new Date(c.EXPIRE_YMD + 'T00:00:00Z') >= TODAY);
-console.log('\n[세그먼트 요약 — 기준일 ' + d2s(TODAY) + ', 모수 ' + N_MEMBER.toLocaleString() + '명]');
-console.log('  가입 90일 이내 신규      :', pct(cnt(members, m => daysBetween(m._reg, TODAY) <= 90)));
-console.log('  구매 이력 없음           :', pct(cnt(members, m => !spendBy[m.MBR_ID])));
-console.log('  1회 구매 후 미재구매     :', pct(cnt(members, m => {
-  const c = orders.filter(o => o.MBR_ID === m.MBR_ID && o.ORDER_STATUS === 'COMPLETE').length; return c === 1;
-})));
-console.log('  최근구매 365일+ (휴면)   :', pct(cnt(members, m => lastOrdBy[m.MBR_ID] && daysBetween(lastOrdBy[m.MBR_ID], TODAY) > 365)));
-console.log('  최근로그인 180일+        :', pct(cnt(members, m => daysBetween(new Date(m.LST_LOGIN_DTM.replace(' ', 'T') + 'Z'), TODAY) > 180)));
-console.log('  장바구니 보유(미구매)    :', pct(cnt(members, m => m.BASKET_YN === 'Y')));
-console.log('  VIP/GOLD                 :', pct(cnt(members, m => m.MBR_GRD !== 'BASIC')));
-console.log('  미사용 유효쿠폰 보유     :', pct(new Set(validCoupon.map(c => c.MBR_ID)).size));
-console.log('  마일리지 90일내 만료     :', pct(cnt(members, m => {
-  if (!m.MILEAGE_EXP_YMD) return false;
-  const dd = daysBetween(TODAY, new Date(m.MILEAGE_EXP_YMD + 'T00:00:00Z')); return dd >= 0 && dd <= 90;
-})));
-console.log('  이메일 수신동의          :', pct(cnt(members, m => m.EML_AGREE_YN === 'Y')));
-console.log('  SMS 수신동의             :', pct(cnt(members, m => m.SMS_AGREE_YN === 'Y')));
-console.log('  동의 전무(발송 불가)     :', pct(cnt(members, m => m.EML_AGREE_YN === 'N' && m.SMS_AGREE_YN === 'N')));
+const doneCntBy = {};
+for (const o of orders) {
+  if (o.ORDER_STATUS !== 'COMPLETE') continue;
+  doneCntBy[o.MBR_ID] = (doneCntBy[o.MBR_ID] || 0) + 1;
+}
+
+const SEG = [
+  ['가입 90일 이내 신규', cnt(members, m => daysBetween(m._reg, TODAY) <= 90), '웰컴/온보딩'],
+  ['구매 이력 없음', cnt(members, m => !spendBy[m.MBR_ID]), '첫구매 유도'],
+  ['1회 구매 후 미재구매', cnt(members, m => doneCntBy[m.MBR_ID] === 1), '2차 구매'],
+  ['최근구매 365일+ (휴면)', cnt(members, m => lastOrdBy[m.MBR_ID] && daysBetween(lastOrdBy[m.MBR_ID], TODAY) > 365), '이탈 방지·윈백'],
+  ['최근로그인 180일+', cnt(members, m => daysBetween(new Date(m.LST_LOGIN_DTM.replace(' ', 'T') + 'Z'), TODAY) > 180), '재방문 유도'],
+  ['장바구니 보유(미구매)', cnt(members, m => m.BASKET_YN === 'Y'), '장바구니 리마인드'],
+  ['VIP/GOLD', cnt(members, m => m.MBR_GRD !== 'BASIC'), '등급 혜택'],
+  ['미사용 유효쿠폰 보유', new Set(validCoupon.map(c => c.MBR_ID)).size, '쿠폰 소진'],
+  ['마일리지 90일내 만료', cnt(members, m => {
+    if (!m.MILEAGE_EXP_YMD) return false;
+    const dd = daysBetween(TODAY, new Date(m.MILEAGE_EXP_YMD + 'T00:00:00Z')); return dd >= 0 && dd <= 90;
+  }), '포인트 만료 알림'],
+  ['이메일 수신동의', cnt(members, m => m.EML_AGREE_YN === 'Y'), '(발송 모수)'],
+  ['SMS 수신동의', cnt(members, m => m.SMS_AGREE_YN === 'Y'), '(발송 모수)'],
+  ['동의 전무(발송 불가)', cnt(members, m => m.EML_AGREE_YN === 'N' && m.SMS_AGREE_YN === 'N'), '동의 재획득']
+];
+
+const rate = (n) => (n / N_MEMBER * 100).toFixed(1) + '%';
+console.log(`
+[세그먼트 요약 — 프로필 ${PROFILE} · 기준일 ${d2s(TODAY)} · 모수 ${N_MEMBER.toLocaleString()}명]`);
+for (const [label, n] of SEG) {
+  console.log('  ' + label.padEnd(24) + ':', `${n.toLocaleString()} (${rate(n)})`);
+}
+
+// ── 진단 기대값 MD (프로필 폴더에 정답지로 동봉) ─────────────────
+const idLo = CFG.idbase + 1, idHi = CFG.idbase + N_MEMBER;
+const hpLo = String(CFG.hpbase + 1).padStart(4, '0'), hpHi = String(CFG.hpbase + N_MEMBER).padStart(4, '0');
+const md = [
+  `# ${PROFILE} 실습 데이터셋 — 진단 기대값 (정답지)`,
+  '',
+  '> 프로그램으로 생성한 **합성 데이터**입니다. 실존 기업·인물과 무관합니다.',
+  '> 이메일은 IANA 예약 도메인(example.com/net/org), 휴대폰은 미할당 국번(010-0000-xxxx)만 씁니다.',
+  '',
+  '| 항목 | 값 |',
+  '|---|---|',
+  `| 프로필 | \`${PROFILE}\` (시드 ${CFG.seed}) |`,
+  `| 기준일 | ${d2s(TODAY)} |`,
+  `| 회원 수 | ${N_MEMBER.toLocaleString()}명 |`,
+  `| 회원ID(Contact Key) 대역 | ${idLo} ~ ${idHi}  (CSV의 MBR_ID 그대로, 구분기호 없음) |`,
+  `| 이메일 형식 | \`${CFG.mailtag}00001@example.com\` ~ |`,
+  `| 휴대폰 대역 | 010-0000-${hpLo} ~ 010-0000-${hpHi} |`,
+  '',
+  '⚠️ **다른 교육생과 ID·이메일·번호 대역이 겹치지 않도록 설계돼 있습니다.** 같은 BU를 쓰더라도 All Contacts 에서 서로 섞이지 않습니다.',
+  '',
+  '## 파일',
+  '',
+  '| 파일 | 테이블 | 건수 |',
+  '|---|---|---:|',
+  `| MEMBER_INFO.csv | 회원 | ${members.length.toLocaleString()} |`,
+  `| ITEM_MST.csv | 상품 | ${items.length.toLocaleString()} |`,
+  `| ORDER_MST.csv | 주문 | ${orders.length.toLocaleString()} |`,
+  `| ORDER_ITEM.csv | 주문상세 | ${orderItems.length.toLocaleString()} |`,
+  `| COUPON_ISSUE.csv | 쿠폰 발급 | ${coupons.length.toLocaleString()} |`,
+  '',
+  '스키마(DDL)·관계도는 두 프로필이 동일합니다 →',
+  '[`docs/schema-samples/urbanmall/urbanmall_schema.sql`](../../docs/schema-samples/urbanmall/urbanmall_schema.sql)',
+  '',
+  '## 진단 기대값 (STEP 1 갈래 A 실습 시 나와야 하는 값)',
+  '',
+  '값이 아래와 크게 다르면 **적재가 잘못된 것**입니다. 다른 교육생과 값이 똑같이 나온다면 **남의 DE를 읽고 있는 것**입니다.',
+  '',
+  '| 세그먼트 | 인원 | 비율 | 연결되는 캠페인 |',
+  '|---|---:|---:|---|'
+];
+for (const [label, n, camp] of SEG) md.push(`| ${label} | ${n.toLocaleString()} | ${rate(n)} | ${camp} |`);
+md.push('', '## 재생성', '', '```bash', `node docs/schema-samples/urbanmall/generate_urbanmall_dataset.js --profile=${PROFILE}`, '```', '');
+
+if (PROFILE !== 'BASE') {
+  fs.writeFileSync(path.join(OUT_DIR, '진단기대값.md'), md.join('\n'), 'utf8');
+  console.log(`
+진단기대값.md        (정답지)`);
+}
+console.log(`
+출력 위치: ${OUT_DIR}`);

@@ -78,7 +78,7 @@ Customer_Profile ─COUNT SQL─► SEG_* 카운트 DE ─rowCount 즉시 읽기
 - ⚠️ **즉석 집계(on-demand)는 채택하지 않는다** — 추천 때마다 1~2분 대기 + 비동기 race(rowCount 0 오판)로 불안정.
 
 **진단 읽기 절차 (대기 없음):**
-1. 모수 DE + 각 `SEG_*` DE의 **rowCount**를 `sfmc_get_data_extension`(GUID)로 읽는다. (GUID는 `sfmc_get_data_extensions($search:"SEG_")`로 조회.)
+1. 모수 DE + 각 `SEG_*` DE의 **rowCount**를 `sfmc_get_data_extension`(GUID)로 읽는다. (GUID는 `sfmc_get_data_extensions($search:"<접두어>_SEG_")`로 조회 — ⚠️ 접두어 없이 `"SEG_"` 로 조회하면 **다른 고객사·다른 교육생의 DE가 섞여 잡힌다**.)
 2. **비율** = 세그먼트 rowCount / 분모 rowCount → 고객사 분석 가이드의 기준선과 대조 → **비율 높은 순** 추천.
 
 > `SEG_*`/Automation이 **아예 없으면** = 최초 구축 → 6절 부트스트랩으로 **자동 생성 후** 읽는다. DE/Automation은 있는데 rowCount만 0이면 = 비동기 지연이거나 실제 0명 → 재생성하지 말고 잠시 후 재확인한다. **"데이터가 SQL 레이어에 없다"는 식으로 오판 금지**(비동기 지연일 뿐).
@@ -184,6 +184,10 @@ STEP 1 진단 시작 시 `sfmc_get_data_extensions($search:"SEG_")`로 현재 `S
 
 ### 6-2. 생성 절차 (Claude가 "지표 정의"로부터 SQL을 조립)
 
+> 🔑 **이름은 전부 활성 고객사 가이드에 적힌 그대로 쓴다** — `SEG_*`·Automation 모두 `<접두어>_` 가 붙은
+> 실제 생성명이다([`../schema-mapping.md`](../schema-mapping.md) "🔑 `<접두어>`"). 접두어를 떼고 만들면
+> 같은 BU의 다른 고객사·다른 교육생 DE를 덮어쓴다. **조회도 `$search:"<접두어>_SEG_"` 처럼 접두어로 한다.**
+
 활성 고객사 분석 가이드의 ① 분석 소스 DE·스키마(§1) ② **지표 정의(§2 — 말로 된 정의 + 의미 규칙)** ③ 기본 진단 세트 목록(§4)을 읽어, 기본 세트의 각 세그먼트마다 아래를 수행한다.
 
 > ⭐ **쿼리는 "복사"가 아니라 "생성"이다.** 분석 가이드 §2의 **자연어 지표 정의**(예: "휴면 = 마지막 로그인 후 90일 경과")와 §1 스키마 컬럼명으로 **Claude가 WHERE 절을 직접 작성**한다. §2의 SQL 예시는 참고용이며, 정의가 바뀌면(휴면 90→60일, 거래액에서 세금 제외 등) 생성되는 쿼리도 따라 바뀐다.
@@ -200,6 +204,38 @@ STEP 1 진단 시작 시 `sfmc_get_data_extensions($search:"SEG_")`로 현재 `S
    - ⚠️ **`SELECT *` 또는 raw 다중 컬럼 금지** — Contact Key **1컬럼만** SELECT(집계 결과 식별자만 적재 → 저장·부하 최소).
    - `targetDataExtension` = 해당 `SEG_*` DE, `targetUpdateType` = **Overwrite**.
    - ⚠️ 생성 전 `sfmc_validate_sql_query`로 문법을 검증한다(오타·컬럼 부재 조기 발견).
+   - 📐 **쿼리문은 여러 줄로 작성한다** — 아래 "SQL 작성 서식" 규칙을 따른다.
+
+### 📐 SQL 작성 서식 (모든 Query Activity 공통 — 필수)
+
+`sfmc_create_sql_query`·`sfmc_update_sql_query`의 `queryText`에 **실제 개행(`\n`)을 넣어** 여러 줄로 작성한다.
+한 줄로 flatten해서 보내면 SFMC 콘솔 Query Activity 편집창에 **한 줄로 그대로 저장돼** 사람이 읽거나 수정할 수 없다.
+
+| 규칙 | 내용 |
+|---|---|
+| 절 단위 줄바꿈 | `SELECT` / `FROM` / `JOIN` / `WHERE` / `GROUP BY` / `HAVING` / `ORDER BY`는 **각각 새 줄**에서 시작 |
+| SELECT 컬럼 | 컬럼 **1개당 1줄** (컬럼 3개 이하의 단순 쿼리는 한 줄 허용) |
+| 들여쓰기 | 2칸. 서브쿼리·`JOIN` 조건은 한 단계 더 들여씀 |
+| 블록 분리 | `UNION ALL`로 잇는 각 블록, 상관 서브쿼리는 **앞뒤 빈 줄**로 분리 |
+| 조건 나열 | `WHERE`의 `AND`/`OR`는 줄 **앞**에 두어 세로로 정렬 |
+| 주석 | 블록 의도가 자명하지 않으면 `--` 한 줄 주석을 블록 위에 붙임 |
+
+```sql
+SELECT
+  c.member_id,
+  c.email,
+  o.order_count
+FROM <접두어>_RAW_Customers c
+  LEFT JOIN (
+    SELECT member_id, COUNT(*) AS order_count
+    FROM <접두어>_RAW_Orders
+    GROUP BY member_id
+  ) o ON o.member_id = c.member_id
+WHERE c.email_consent = 'True'
+  AND DATEDIFF(day, c.last_login_date, GETDATE()) >= 90
+```
+
+> 생성 후 `sfmc_get_sql_query`로 재조회해 **개행이 보존됐는지** 확인한다(도구·직렬화 과정에서 깨질 수 있음).
 
 3. **진단 Automation 생성/갱신** — `sfmc_create_automation` (이름은 분석 가이드 지정, 예 `CP_DIAGNOSIS_AUTOMATION`)
    - 위 SQL Query들을 스텝으로 포함, **매일 03:00 KST Scheduled**, 각 Query는 Overwrite.

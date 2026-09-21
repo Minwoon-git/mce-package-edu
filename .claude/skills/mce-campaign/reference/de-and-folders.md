@@ -11,7 +11,7 @@
 ## 요약 (빠른 참조)
 
 STEP 1(주제 선정/캠페인 추천)은 **고객 데이터를 직접 진단**해 캠페인을 추천한다(3차원).
-- 분석의 단일 소스 = 활성 고객사 분석 가이드에 지정된 분석 DE(현재 활성 = `EDU99_RECON_Profile` / `EDU99_RECON_Profile_DE`).
+- 분석의 단일 소스 = 활성 고객사 분석 가이드 §1이 지정한 분석 DE. **DE 이름을 이 문서에 적지 않는다** — [`active-customer.json`](active-customer.json)의 `analysis_guide`가 가리키는 파일에서 읽는다.
 - 진단은 **사전집계 `SEG_*` 카운트 DE의 `rowCount`만 즉시 읽어** 비율을 내고, 기준선과 대조해 비율 높은 순으로 추천한다(대기 없음). → 상세 [`analysis-guide/_common.md`](analysis-guide/_common.md) 3절.
 - 추천된 캠페인의 **발송(진입) DE는 캠페인 선택 후** STEP 1-6에서 세그먼트 조건 + 동의 필터로 생성한다(진단 단계에서 만들지 않음).
 - 분석 소스가 없거나 비면 **폴더 탐색 fallback** ([`analysis-guide/_common.md`](analysis-guide/_common.md) 5절)으로 폴백한다.

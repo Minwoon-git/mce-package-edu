@@ -1,8 +1,10 @@
 {
   "_comment": "활성 고객사 선언 — 이 파일 하나가 시스템 전체의 단일 스위치다. 분석 가이드(값)와 브랜드 킷(색·폰트·로고)을 여기서 지정하며, SKILL.md·_template-guide.md 등 다른 문서에는 고객사명을 중복 기재하지 않는다. 고객사 전환은 오케스트레이터가 사용자 확인 후 이 파일만 고친다(워커 임의 변경 금지). 경로는 이 파일이 있는 reference/ 기준 상대경로.",
-  "customer": "ecommerce-default",
-  "analysis_guide": "analysis-guide/ecommerce-default.md",
+  "customer": null,
+  "analysis_guide": null,
   "brand_kit": null,
-  "updated": "2026-09-18",
-  "_note": "brand_kit이 null이면 리포트는 중립 팔레트로 생성되고 이메일은 브랜드 값을 사용자에게 받아야 한다. 실제 고객사 전환 시: ① analysis-guide/<고객사>.md 생성(STEP 0 자동) ② email-template/<고객사>.json 생성(_example-brand.json 복제) ③ 이 파일의 customer·analysis_guide·brand_kit·updated 갱신."
+  "updated": "2026-09-21",
+  "_state": "미설정 — 아직 활성 고객사가 없다. STEP 0(스키마 분석 → 빈 RAW DE → 가이드 MD 생성)을 먼저 수행하고, 오케스트레이터가 사용자 확인 후 이 파일을 갱신한다. analysis_guide가 null인 상태에서 analysis-guide/ecommerce-default.md를 활성 값으로 착각해 읽지 않는다(그 파일은 예시 템플릿이다).",
+  "_note": "고객사 확정 시: ① analysis-guide/<고객사>.md 생성(STEP 0 자동) ② email-template/<고객사>.json 생성(_example-brand.json 복제) ③ 이 파일의 customer·analysis_guide·brand_kit·updated 갱신. brand_kit이 null이면 리포트는 중립 팔레트로 생성되고 이메일은 브랜드 값을 사용자에게 받아야 한다.",
+  "_교육": "교육에서는 교육생마다 접두어(EDU01/EDU02)가 다르므로, 각자 자기 PC의 clone에서 STEP 0을 돌려 이 파일을 자기 값으로 갱신한다. 이 파일은 git 추적 대상이라 교육 중에는 push 하지 않는다."
 }
