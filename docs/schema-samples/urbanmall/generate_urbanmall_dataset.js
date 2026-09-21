@@ -79,6 +79,10 @@ const d2s = (d) => d.toISOString().slice(0, 10);
 const d2dt = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
 const addD = (d, n) => new Date(d.getTime() + n * DAY);
 const daysBetween = (a, b) => Math.round((b - a) / DAY);
+// SFMC DATEDIFF(day, a, b) 의미 — 시각을 버리고 "달력 날짜" 차이만 센다.
+// 정답지는 교육생이 SFMC에서 돌릴 SQL과 같은 셈법을 써야 한다(시각 때문에 하루 어긋나는 것 방지).
+const dateDiff = (a, b) => Math.round((Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate())
+                                     - Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate())) / DAY);
 function randDate(from, to) { return addD(from, ri(0, Math.max(0, daysBetween(from, to)))); }
 function randDateSkewRecent(from, to) {          // 최근일수록 확률 ↑
   const span = Math.max(1, daysBetween(from, to));
@@ -319,17 +323,17 @@ for (const o of orders) {
 }
 
 const SEG = [
-  ['가입 90일 이내 신규', cnt(members, m => daysBetween(m._reg, TODAY) <= 90), '웰컴/온보딩'],
+  ['가입 90일 이내 신규', cnt(members, m => dateDiff(m._reg, TODAY) <= 90), '웰컴/온보딩'],
   ['구매 이력 없음', cnt(members, m => !spendBy[m.MBR_ID]), '첫구매 유도'],
   ['1회 구매 후 미재구매', cnt(members, m => doneCntBy[m.MBR_ID] === 1), '2차 구매'],
-  ['최근구매 365일+ (휴면)', cnt(members, m => lastOrdBy[m.MBR_ID] && daysBetween(lastOrdBy[m.MBR_ID], TODAY) > 365), '이탈 방지·윈백'],
-  ['최근로그인 180일+', cnt(members, m => daysBetween(new Date(m.LST_LOGIN_DTM.replace(' ', 'T') + 'Z'), TODAY) > 180), '재방문 유도'],
+  ['최근구매 365일+ (휴면)', cnt(members, m => lastOrdBy[m.MBR_ID] && dateDiff(lastOrdBy[m.MBR_ID], TODAY) >= 365), '이탈 방지·윈백'],
+  ['최근로그인 180일+', cnt(members, m => dateDiff(new Date(m.LST_LOGIN_DTM.replace(' ', 'T') + 'Z'), TODAY) >= 180), '재방문 유도'],
   ['장바구니 보유(미구매)', cnt(members, m => m.BASKET_YN === 'Y'), '장바구니 리마인드'],
   ['VIP/GOLD', cnt(members, m => m.MBR_GRD !== 'BASIC'), '등급 혜택'],
   ['미사용 유효쿠폰 보유', new Set(validCoupon.map(c => c.MBR_ID)).size, '쿠폰 소진'],
   ['마일리지 90일내 만료', cnt(members, m => {
     if (!m.MILEAGE_EXP_YMD) return false;
-    const dd = daysBetween(TODAY, new Date(m.MILEAGE_EXP_YMD + 'T00:00:00Z')); return dd >= 0 && dd <= 90;
+    const dd = dateDiff(TODAY, new Date(m.MILEAGE_EXP_YMD + 'T00:00:00Z')); return dd >= 0 && dd <= 90;
   }), '포인트 만료 알림'],
   ['이메일 수신동의', cnt(members, m => m.EML_AGREE_YN === 'Y'), '(발송 모수)'],
   ['SMS 수신동의', cnt(members, m => m.SMS_AGREE_YN === 'Y'), '(발송 모수)'],

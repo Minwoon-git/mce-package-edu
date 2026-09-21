@@ -120,6 +120,7 @@ EventDate >= DATEADD(DAY, -2, GETDATE())
 - 스케줄: **매일 02:00 (계정 표준시간대)**, 시작일 = 생성 다음 날
 - 구성: 1 step에 Query Activity 2종 (Daily·History — 서로 의존 없어 동시 실행 가능)
 - 생성 도구: `sfmc_create_sql_query`(2회) → `sfmc_create_automation`(스케줄 포함)
+- 📐 **쿼리문 서식**: `queryText`에 **실제 개행을 넣어 여러 줄로** 작성한다 — 절(`SELECT`/`FROM`/`JOIN`/`WHERE`/`GROUP BY`) 단위 줄바꿈, SELECT 컬럼 1개당 1줄, 들여쓰기 2칸, `UNION ALL` 블록은 빈 줄로 분리. 한 줄로 flatten하면 콘솔 편집창에서 읽을 수도 고칠 수도 없다. 위 §의 SQL 예시가 그대로 목표 서식이다. 생성 후 `sfmc_get_sql_query`로 개행 보존을 확인한다.
 - 생성 직후 `sfmc_run_automation` 1회 → 초기 적재. 완료 후 두 DE의 적재 행 수를 확인해 보고.
   (최초 실행 시 History도 최근 2일치부터 시작한다 — 과거 백필이 필요하면 History 쿼리의 윈도우를 임시로 늘려 1회 실행하는 방법을 후속 안내에 적는다.)
 

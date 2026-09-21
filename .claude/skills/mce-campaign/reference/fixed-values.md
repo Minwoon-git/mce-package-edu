@@ -25,11 +25,13 @@
 
 | 항목 | 이름 | GUID / ID |
 |---|---|---|
-| Send Classification (Marketing) | Default Commercial | `<확인필요: sfmc_get_send_classifications>` |
-| Send Classification (Operational) | Default Transactional | `<확인필요: sfmc_get_send_classifications>` |
-| Sender Profile | Default (`<FromAddress>`) | `<확인필요: sfmc_get_sender_profiles>` |
-| Delivery Profile | Default | `<확인필요: Delivery Profile ID>` |
-| Publication List | All Subscribers | `<확인필요: sfmc_get_lists>` |
+| Send Classification (Marketing) | Default Commercial | `002f8a15-ecd4-f011-a5da-5cba2c19fe48` |
+| Send Classification (Operational) | Default Transactional | `012f8a15-ecd4-f011-a5da-5cba2c19fe48` |
+| Sender Profile | Default (`salesforce_edu@milvus.co.kr`) | `fe2e8a15-ecd4-f011-a5da-5cba2c19fe48` |
+| Delivery Profile | Default | `ff2e8a15-ecd4-f011-a5da-5cba2c19fe48` |
+| Publication List | All Subscribers | `5523` (ObjectID `1ba80504-bdf9-4f7a-b398-6f61f78bc44d`) |
+
+> 위 값은 2026-09-21 `sfmc_get_send_classifications`/`sfmc_get_sender_profiles`/`sfmc_get_lists`로 실측 확인. Default Commercial의 SenderProfile.ObjectID/DeliveryProfile.ObjectID를 그대로 사용(위 표와 동일).
 
 - **Send Classification과 Sender Profile은 짝을 맞춘다.** Send Classification이 이미 Sender/Delivery Profile을 물고 있으므로, `sfmc_get_send_classifications` 응답의 `SenderProfile.ObjectID`·`DeliveryProfile.ObjectID`를 그대로 쓰는 것이 가장 안전하다. 임의 조합 시 발송 도메인이 의도와 달라진다.
 - **Publication List는 BU마다 다르다** — `sfmc_get_lists`로 All Subscribers ID를 확인한다(다른 BU의 리스트 ID를 그대로 쓰면 발송 불가).
@@ -39,8 +41,9 @@
 
 | 폴더 | categoryId | 비고 |
 |---|---|---|
-| Content Builder (루트) | `<확인필요: sfmc_get_content_categories>` | — |
-| MCE-Package (캠페인 발송용 이메일 전용) | `<확인필요: 없으면 생성>` | 루트 하위. **다른 BU의 폴더 ID를 재사용하지 말 것** |
+| Content Builder (루트) | `82578` | — |
+| MCE-Package (캠페인 발송용 이메일 전용) | `96253` | 루트 하위. **다른 BU의 폴더 ID를 재사용하지 말 것** |
+| Query 루트 폴더 (SQL Query 액티비티) | `82567` | `sfmc_get_automation_categories?$filter=categorytype eq queryactivity` |
 
 ### 시간대
 - **timeZoneId**: `48` (Seoul, GMT+09:00) — Automation 스케줄 PATCH 시 항상 사용. (BU 종속 아님)
