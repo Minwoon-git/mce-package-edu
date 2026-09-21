@@ -6,7 +6,7 @@
 > 새 이메일을 무조건 생성하지 않는다. 아래 순서를 지킨다.
 
 1. **기존 콘텐츠 검색** — `MCE-Package`(categoryId `<확인필요: sfmc_get_content_categories>`) 폴더에서 캠페인 유형 키워드로 매칭되는 에셋을 찾는다.
-   (`sfmc_search_content_builder_assets` 또는 `sfmc_get_content_builder_assets` + 이름 필터)
+   (`sfmc_search_content_builder_assets` 또는 `sfmc_get_content_assets` + 이름 필터)
 2. **매칭 결과 처리**:
    - 매칭 에셋이 있으면 → 그 `legacyId`를 이메일 액티비티 `emailId`로 **재사용**한다. (수동 모드에서 후보가 여럿이면 사용자에게 보여주고 고르게 한다. 자동 모드에서는 가장 적합한 1개를 골라 1줄로 알린다.)
    - 매칭 에셋이 없을 때만 → 아래 "고퀄리티 + born-compliant" 방식으로 **신규 생성**한다.
