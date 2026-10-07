@@ -204,7 +204,8 @@ function probeMcpAuth() {
       const p = spawn('claude', ['mcp', 'get', MCP_NAME], { cwd: PROJECT_ROOT, shell: true });
       p.stdout.on('data', (d) => (out += d.toString()));
       p.stderr.on('data', (d) => (out += d.toString()));
-      p.on('close', () => once(/needs authentication/i.test(out)));
+      // invalid_token: 저장된 토큰을 서버가 접속 단계에서 거부 — "Needs authentication" 대신 연결 실패로 보인다
+      p.on('close', () => once(/needs authentication|invalid_token/i.test(out)));
       p.on('error', () => once(false));
       setTimeout(() => { once(false); try { killTree(p); } catch { /* 이미 종료 */ } }, 25000);
     } catch {
@@ -226,7 +227,9 @@ function probeMcpAuth() {
 //   · 이미 '인증 필요' 상태(배너 표시 중)면 건너뛴다 — 이미 아는 사실을 다시 확인하지 않는다
 //   · 채팅에서 SFMC 도구가 정상 성공하면 그 사실로 캐시를 갱신 → 활발히 쓰는 동안은 추가 호출 0
 // ⚠ 오탐 방지: 타임아웃·CLI 오류 등 '판정 불가'는 정상으로 간주한다. 멀쩡한데 배너가 뜨는 게 더 나쁘다.
-const AUTH_ERR_RE = /(session is invalid or access is revoked|refresh token is (revoked|expired)|obtain a new refresh token)/i;
+// "your session is inva": 도구 결과의 오류 문구가 중간이 마스킹되어 "Your session is inva***rketing Cloud admin."
+// 처럼 잘려 오는 경우가 있어(2026-10-07 실측) 전체 문장 대신 마스킹 전 앞부분으로도 잡는다.
+const AUTH_ERR_RE = /(session is invalid or access is revoked|your session is inva|refresh token is (revoked|expired)|obtain a new refresh token|invalid_token)/i;
 const HEALTH_TTL = 6 * 3600e3; // 6시간
 const HEALTH_FILE = path.join(__dirname, '.auth-health.json');
 const HEALTH_PROMPT =
@@ -415,6 +418,7 @@ app.post('/api/chat', (req, res) => {
       // - "session is invalid or access is revoked": MCP 세션 만료
       // - "refresh token is revoked/expired" / "obtain a new refresh token": SFMC 리프레시 토큰 만료
       //   (이 경우 MCP 연결 자체는 Connected라 프로브로는 못 잡는다 — 2026-08-28 실측)
+      // - "invalid_token": 저장된 OAuth 토큰을 MCP 서버가 접속 단계에서 거부
       if (!usedSfmc && line.includes('mcp__sf-mce-mcp__')) usedSfmc = true; // 이번 요청이 SFMC 도구를 썼는지
       if (!authErr && AUTH_ERR_RE.test(line)) {
         authErr = true;
