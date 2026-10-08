@@ -1,0 +1,1354 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MCE 저니 실습 과제</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 위는 공지(점 격자 캔버스 위 5단계 흐름 + 본문/곁단 2열), 아래는 제출물 만들기(입력값·파일 2열 + 준비 상태 바). Journey Builder 캔버스를 바탕 모티프로 쓴다 */
+:root{
+  --bg:#f1f5f6;
+  --surface:#ffffff;
+  --surface-2:#e7eef0;
+  --ink:#12222a;
+  --muted:#56686f;
+  --line:#d0dbdf;
+  --dot:#bccbd0;
+  --accent:#0a675e;
+  --accent-ink:#ffffff;
+  --accent-soft:#d7ede9;
+  --ok:#1a7442; --ok-soft:#dbefe2;
+  --warn:#8c5300; --warn-soft:#f8e8cc;
+  --bad:#ad271e; --bad-soft:#f8dfdb;
+  --info:#2350b0; --info-soft:#dfe7f8;
+  --shadow:0 1px 2px rgba(18,34,42,.06),0 6px 20px rgba(18,34,42,.06);
+  --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0d1518; --surface:#142026; --surface-2:#1a2930; --ink:#e2ebee; --muted:#93a5ad; --line:#293a42; --dot:#2a3c44;
+    --accent:#4dc0af; --accent-ink:#04231f; --accent-soft:#133833;
+    --ok:#72d29c; --ok-soft:#12321f; --warn:#f0b75c; --warn-soft:#382810; --bad:#ff8d82; --bad-soft:#3b1714;
+    --info:#93b4ff; --info-soft:#172849;
+    --shadow:0 1px 2px rgba(0,0,0,.35),0 8px 24px rgba(0,0,0,.3);
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+.wrap{max-width:1160px;margin:0 auto;padding-inline:24px;padding-block:32px 72px;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{margin:0;text-wrap:balance;letter-spacing:-.01em}
+p{margin:0}
+code,.mono{font-family:var(--mono)}
+code{font-size:.9em;background:var(--surface-2);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.small{font-size:12.5px;color:var(--muted)}
+.note{font-size:13.5px;color:var(--muted)}
+
+/* hero */
+.hero{display:flex;flex-direction:column;gap:14px;max-width:780px}
+.eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:var(--accent);font-weight:500}
+.hero h1{font-size:clamp(28px,4.2vw,40px);line-height:1.2;font-weight:700}
+.lead{font-size:16.5px;color:var(--muted);max-width:62ch}
+.meta{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:10px 30px}
+.meta li{display:flex;gap:10px;align-items:center}
+.meta .k{font-size:12.5px;letter-spacing:.04em;color:var(--muted)}
+.meta .v{font-weight:500}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;line-height:1.4;padding:3px 10px 3px 8px;border-radius:999px;white-space:nowrap;background:var(--warn-soft);color:var(--warn)}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+
+/* flow canvas */
+.canvas{background-color:var(--surface-2);background-image:radial-gradient(circle,var(--dot) 1.1px,transparent 1.6px);background-size:18px 18px;border:1px solid var(--line);border-radius:12px;padding:20px 20px 26px;display:flex;flex-direction:column;gap:22px}
+.canvas-head{display:flex;justify-content:space-between;align-items:baseline;gap:6px 16px;flex-wrap:wrap}
+.sec-title{font-size:13px;font-weight:600;letter-spacing:.06em;color:var(--muted)}
+.flow{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;position:relative}
+.flow::before{content:"";position:absolute;top:29px;left:10%;right:10%;height:2px;background:repeating-linear-gradient(90deg,var(--accent) 0 6px,transparent 6px 11px);opacity:.6}
+.node{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;min-width:0}
+.node-dot{position:relative;width:60px;height:60px;border-radius:50%;background:var(--surface);border:2px solid var(--accent);color:var(--accent);display:grid;place-items:center;box-shadow:var(--shadow);flex:none}
+.node-dot svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.node-num{position:absolute;top:-6px;right:-10px;min-width:22px;height:22px;border-radius:11px;background:var(--accent);color:var(--accent-ink);font:600 12px/22px var(--mono);text-align:center;padding:0 6px}
+.node-text{display:flex;flex-direction:column;gap:4px;min-width:0}
+.node-text strong{font-size:15px;font-weight:600}
+.node-text span{font-size:13px;color:var(--muted);line-height:1.55}
+
+/* notice */
+.notice{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:32px;align-items:start}
+.col{display:flex;flex-direction:column;gap:30px;min-width:0}
+.blk{display:flex;flex-direction:column;gap:12px;min-width:0}
+.blk > h2{font-size:18px;font-weight:600}
+.deliv,.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.deliv li{display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.deliv li:last-child{border-bottom:1px solid var(--line)}
+.tag{font:600 11.5px/1 var(--mono);letter-spacing:.04em;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:5px 0;text-align:center;align-self:start;margin-top:3px}
+.deliv strong,.checks strong{display:block;font-weight:600}
+.deliv span,.checks span{display:block;font-size:14px;color:var(--muted)}
+.checks{gap:14px}
+.checks li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px}
+.checks li::before{content:"";width:18px;height:18px;border:2px solid var(--accent);border-radius:5px;margin-top:3px}
+.side{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:20px}
+.side .blk + .blk{border-top:1px solid var(--line);padding-top:20px}
+.side .blk > h2{font-size:16px}
+.assign{margin:0;display:flex;flex-direction:column;gap:10px}
+.assign div{display:grid;grid-template-columns:62px minmax(0,1fr);gap:10px;align-items:baseline}
+.assign dt{font:600 14px var(--mono)}
+.assign dd{margin:0}
+.assign dd strong{display:block;font-weight:600}
+.assign dd span{font-size:13px;color:var(--muted)}
+.prompt{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+.prompt .who-tag{grid-column:1/-1;font:600 11.5px var(--mono);color:var(--accent);letter-spacing:.04em}
+.prompt code.lines{white-space:pre-line}
+.prompt code{background:none;padding:0;font-size:13.5px;line-height:1.5}
+
+/* buttons */
+.btn{font:500 14px/1.3 var(--sans);padding:8px 14px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn-sm{font-size:13px;padding:5px 10px}
+.btn-lg{font-size:15px;padding:11px 22px;font-weight:600}
+.btn-ghost{background:transparent}
+kbd{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--surface);color:var(--ink)}
+
+/* submit */
+.submit{display:flex;flex-direction:column;gap:18px}
+.submit-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px 24px;flex-wrap:wrap;border-top:2px solid var(--ink);padding-top:22px}
+.submit-head h2{font-size:24px;font-weight:700}
+.hint{color:var(--muted);font-size:14px;margin-top:6px;max-width:62ch}
+.who{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.who-label{font-size:13px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{font:500 14px var(--mono);padding:8px 14px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.submit-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:20px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0;box-shadow:var(--shadow)}
+.sub-title{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+.count{font:500 12px var(--mono);color:var(--muted)}
+.assigned-note{font-size:13.5px;font-weight:500;color:var(--accent)}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field > span{font-size:13px;color:var(--muted)}
+.field input{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+.field input.mono{font-family:var(--mono);font-size:14px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check{font-size:13.5px;line-height:1.5;padding:7px 10px;border-radius:6px;display:flex;gap:8px;align-items:flex-start}
+.check::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:currentColor;margin-top:7px}
+.check.tone-ok{background:var(--ok-soft);color:var(--ok)}
+.check.tone-warn{background:var(--warn-soft);color:var(--warn)}
+.check.tone-bad{background:var(--bad-soft);color:var(--bad)}
+.tick{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.tick input{margin:4px 0 0;accent-color:var(--accent);width:16px;height:16px;flex:none}
+.drop{border:1.5px dashed var(--line);border-radius:10px;padding:20px 14px;text-align:center;display:flex;flex-direction:column;gap:4px;align-items:center;cursor:pointer;background:var(--bg);transition:border-color .15s,background-color .15s}
+.drop:hover,.drop:focus-visible,.drop.is-over{border-color:var(--accent);background:var(--accent-soft)}
+.drop strong{font-weight:600}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px}
+.thumb{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0;position:relative}
+.thumb-img{aspect-ratio:4/3;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface-2);max-width:100%}
+.thumb-img img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb figcaption{display:flex;flex-direction:column;min-width:0}
+.thumb .del{position:absolute;top:6px;right:6px}
+.fname{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.fmeta{font-size:12px;color:var(--muted)}
+.filelist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.frow{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px 12px;align-items:center}
+.ftype{font:600 11px/1 var(--mono);padding:5px 6px;border-radius:4px;background:var(--surface-2);color:var(--ink);letter-spacing:.04em}
+.ftype.x-xlsx,.ftype.x-csv{background:var(--ok-soft);color:var(--ok)}
+.ftype.x-pdf{background:var(--bad-soft);color:var(--bad)}
+.ftype.x-pptx{background:var(--warn-soft);color:var(--warn)}
+.finfo{display:flex;flex-direction:column;min-width:0}
+.ready{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 20px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.ready-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.ready-list li{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:4px 11px;border-radius:999px}
+.ready-list li.is-ok{background:var(--ok-soft);color:var(--ok)}
+.ready-list li.is-miss{background:var(--surface-2);color:var(--muted)}
+.ready-list .mark{font-family:var(--mono);font-weight:600}
+.save-note{grid-column:1/-1;font-size:13.5px;color:var(--ink)}
+.save-note:empty{display:none}
+.size-note{color:var(--warn)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;max-width:min(560px,calc(100% - 32px));box-shadow:var(--shadow);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+
+@media (max-width:900px){.notice{grid-template-columns:1fr}}
+@media (max-width:820px){
+  .flow{grid-template-columns:1fr;gap:18px}
+  .flow::before{top:30px;bottom:30px;left:29px;right:auto;width:2px;height:auto;background:repeating-linear-gradient(180deg,var(--accent) 0 6px,transparent 6px 11px)}
+  .node{flex-direction:row;align-items:flex-start;text-align:left;gap:16px}
+  .node-text{padding-top:6px}
+}
+@media (max-width:520px){
+  .wrap{padding-inline:16px;padding-block:20px 56px;gap:32px}
+  .field-row{grid-template-columns:1fr}
+  .ready{grid-template-columns:1fr}
+  .ready .btn-lg{width:100%}
+}
+/* ---------- 디자인 보강: 면 구분·입력 상태·하단 고정 저장 바 ---------- */
+:root{--accent-hover:#08544d;--ring:rgba(10,103,94,.18);--info-tag:#2350b0;--info-tag-soft:#e3eafa;--amber-tag:#8c5300;--amber-tag-soft:#f8ecd6}
+@media (prefers-color-scheme:dark){:root{--accent-hover:#6fd3c4;--ring:rgba(77,192,175,.25);--info-tag:#93b4ff;--info-tag-soft:#172849;--amber-tag:#f0b75c;--amber-tag-soft:#382810}}
+body{background:var(--bg)}
+.wrap{gap:36px}
+.hero{max-width:none;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px 30px;box-shadow:var(--shadow);gap:12px}
+.hero h1{font-size:clamp(28px,4vw,38px)}
+.lead{font-size:16px;max-width:70ch}
+.meta{gap:8px;margin-top:8px}
+.meta li{gap:8px;padding:6px 12px 6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--bg)}
+.meta .pill{padding:2px 9px 2px 7px}
+.canvas{border-radius:16px;padding:22px 22px 28px}
+.node-dot{width:64px;height:64px;background:var(--accent-soft);border-width:0;box-shadow:0 0 0 6px var(--surface-2),var(--shadow)}
+.flow::before{top:31px}
+.node-text strong{font-size:15.5px}
+.notice{gap:24px;align-items:stretch}
+.col{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px 26px;box-shadow:var(--shadow);gap:28px}
+.side{border-radius:16px;padding:22px;box-shadow:var(--shadow)}
+.blk > h2{font-size:17px}
+.tag.t-shot{color:var(--info-tag);background:var(--info-tag-soft)}
+.tag.t-input{color:var(--amber-tag);background:var(--amber-tag-soft)}
+.prompt{border-radius:10px;transition:border-color .15s}
+.prompt:hover{border-color:var(--accent)}
+.btn{border-radius:8px;transition:background-color .15s,border-color .15s,box-shadow .15s}
+.btn-primary:hover:not(:disabled){background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn-lg{padding:12px 26px;box-shadow:0 2px 8px var(--ring)}
+.submit-head{border-top:0;padding-top:0}
+.submit-head h2{font-size:26px}
+.seg{border-radius:10px;padding:3px;gap:3px;background:var(--surface-2);border-color:transparent}
+.seg button{border-radius:7px;padding:7px 16px}
+.seg button + button{border-left:0}
+.seg button[aria-pressed="true"]{box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.panel{border-radius:16px;padding:22px;gap:14px}
+.sub-title{font-size:14px;color:var(--ink);letter-spacing:0}
+.field input{height:42px;border-radius:8px;background:var(--surface);transition:border-color .15s,box-shadow .15s}
+.field input:hover{border-color:var(--muted)}
+.field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+.tick{padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.drop{padding:28px 16px;border-radius:12px;gap:6px}
+.drop-icon{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);margin-bottom:4px}
+.drop-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.thumb-img{border-radius:8px}
+.frow{border-radius:10px}
+.ready{border-radius:16px;box-shadow:var(--shadow)}
+@media (max-width:520px){.hero,.col{padding:20px 18px}}
+/* ---------- 차수 탭 ---------- */
+.wrap{gap:20px}
+.tabpanel{display:flex;flex-direction:column;gap:36px}
+.tabs{display:flex;gap:6px;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.tab{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:10px;padding:10px 14px;border:0;border-radius:10px;background:transparent;color:var(--muted);font:inherit;cursor:pointer;text-align:left;transition:background-color .15s,color .15s}
+.tab:hover{background:var(--surface-2);color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--accent-soft);color:var(--ink)}
+.tab-no{flex:none;font:600 12.5px/1 var(--mono);padding:6px 9px;border-radius:7px;background:var(--surface-2);color:var(--muted)}
+.tab[aria-selected="true"] .tab-no{background:var(--accent);color:var(--accent-ink)}
+.tab-name{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.field textarea{font:inherit;font-size:15px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0;min-height:88px;resize:vertical;line-height:1.55;transition:border-color .15s,box-shadow .15s}
+.field textarea:hover{border-color:var(--muted)}
+.field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+.howto{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.howto li::marker{color:var(--accent);font-family:var(--mono);font-weight:600}
+.tabnav-title{display:none}
+/* 넓은 화면: 탭을 왼쪽 세로 메뉴로 */
+@media (min-width:1000px){
+  .wrap{max-width:1420px;display:grid;grid-template-columns:220px minmax(0,1fr);gap:28px;align-items:start}
+  .tabnav{grid-column:1;grid-row:1;position:sticky;top:24px;display:flex;flex-direction:column;gap:10px}
+  .tabnav-title{display:block;font-size:12.5px;font-weight:600;letter-spacing:.06em;color:var(--muted);padding-left:6px}
+  .tabpanel{grid-column:2;grid-row:1;min-width:0}
+  .tabs{flex-direction:column}
+  .tab{flex:none;align-items:flex-start;padding:12px}
+  .tab-name{white-space:normal;line-height:1.4}
+}
+@media (max-width:520px){.tab{padding:9px 10px;justify-content:center}.tab-name{display:none}}
+.tbl-cap{font-size:13px;font-weight:600;color:var(--ink);display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin-top:4px}
+.tbl-cap span{display:inline-flex;align-items:center;gap:6px;font-weight:400;color:var(--muted);font-size:12.5px}
+.key{display:inline-block;width:12px;height:12px;border-radius:3px;margin-left:6px}
+.key-chg{background:var(--warn-soft);box-shadow:inset 0 0 0 1px var(--warn)}
+.key-new{background:var(--ok-soft);box-shadow:inset 0 0 0 1px var(--ok)}
+.sheet-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.sheet{border-collapse:collapse;width:100%;min-width:520px;font-size:13px;line-height:1.45}
+.sheet th,.sheet td{padding:7px 10px;border-top:1px solid var(--line);text-align:left;vertical-align:top}
+.sheet th{background:var(--surface-2);border-top:0;font-size:12px;font-weight:600;color:var(--muted)}
+.sheet td:first-child{font-family:var(--mono);white-space:nowrap}
+.sheet td.chg{background:var(--warn-soft);color:var(--warn);font-weight:600}
+.sheet tr.new td{background:var(--ok-soft);color:var(--ok);font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="tabnav" aria-label="과제 차수">
+  <p class="tabnav-title">실습 과제</p>
+  <div class="tabs" role="tablist" aria-label="과제 차수">
+    <button type="button" class="tab" role="tab" id="tab-a1" data-tab="a1" aria-controls="panel-a1" aria-selected="true"><span class="tab-no">1차시</span><span class="tab-name">진단 결과로 저니 만들기</span></button>
+    <button type="button" class="tab" role="tab" id="tab-a2" data-tab="a2" aria-controls="panel-a2" aria-selected="false" tabindex="-1"><span class="tab-no">2차시</span><span class="tab-name">정의서를 수정하여 저니 만들기</span></button>
+    <button type="button" class="tab" role="tab" id="tab-a3" data-tab="a3" aria-controls="panel-a3" aria-selected="false" tabindex="-1"><span class="tab-no">3차시</span><span class="tab-name">만든 저니로 실제 발송하기</span></button>
+  </div>
+  </nav>
+
+  <!-- ==================== 1차시 ==================== -->
+  <div class="tabpanel" id="panel-a1" role="tabpanel" aria-labelledby="tab-a1">
+  <header class="hero">
+    <p class="eyebrow">MCE 캠페인 자동화 실습 · 1차시</p>
+    <h1>진단 결과로 저니 만들기</h1>
+    <p class="lead">지난 실습에서 고객 데이터를 진단했습니다. 이번에는 진단표에서 배정된 캠페인을 골라 정의서(xlsx)와 Draft 저니까지 만듭니다. 다 만들면 이 페이지 아래 '제출물 만들기'에서 파일을 첨부하고 제출 파일을 저장해 주세요.</p>
+    <ul class="meta">
+      <li><span class="k">대상</span><span class="v mono">EDU01 · EDU02</span></li>
+      <li><span class="k">결과물</span><span class="v">정의서 xlsx · 분석 리포트 pptx · 캡처 · 검증 값</span></li>
+      <li><span class="k">저니 상태</span><span class="pill">Draft로만 생성</span></li>
+    </ul>
+  </header>
+
+  <section class="canvas" aria-labelledby="a1-flow">
+    <div class="canvas-head">
+      <h2 class="sec-title" id="a1-flow">할 일</h2>
+      <p class="small">챗봇에서 순서대로 진행합니다</p>
+    </div>
+    <ol class="flow">
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M4 12h10M4 18h6"/><path d="M15 17.5l2.2 2.2L21 15.5"/></svg><span class="node-num">1</span></span>
+        <div class="node-text"><strong>캠페인 고르기</strong><span>진단표에서 배정된 캠페인과 대상 인원을 확인합니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><path d="M7 12h3.5l4-5.5H20M10.5 12l4 5.5H20"/></svg><span class="node-num">2</span></span>
+        <div class="node-text"><strong>'중간' 후보 선택</strong><span>후보 표에서 복잡도가 '중간'(분기 1개)인 번호를 입력합니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H10l-5 4v-4H4z"/><path d="M8 9h8M8 12h5"/></svg><span class="node-num">3</span></span>
+        <div class="node-text"><strong>수동 모드로 Plan</strong><span>진입 DE, 스케줄, 재진입, 단계, 대기를 하나씩 정합니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 9h16M4 14.5h16M10 3.5v17"/></svg><span class="node-num">4</span></span>
+        <div class="node-text"><strong>정의서 확인 후 승인</strong><span>진행 방식은 '정의서 후 승인'. xlsx를 열어 본 뒤 승인합니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="4.5" cy="12" r="2"/><rect x="9.5" y="9" width="5" height="6" rx="1"/><circle cx="19.5" cy="12" r="2"/><path d="M6.5 12h3M14.5 12h3"/></svg><span class="node-num">5</span></span>
+        <div class="node-text"><strong>Draft 저니 대조</strong><span>Journey Builder에서 저니를 열어 정의서와 같은지 봅니다.</span></div>
+      </li>
+    </ol>
+  </section>
+
+  <div class="notice">
+    <div class="col">
+      <section class="blk" aria-labelledby="a1-deliv">
+        <h2 id="a1-deliv">제출물</h2>
+        <ul class="deliv">
+          <li><span class="tag">파일</span><div><strong>정의서 xlsx</strong><span><code>campaign_definitions</code> 폴더의 <code>CP_…_YYYYMMDD.xlsx</code></span></div></li>
+          <li><span class="tag">파일</span><div><strong>분석 리포트 pptx</strong><span><code>reports</code> 폴더의 분석 리포트. 아직 없으면 챗봇에 "리포트 만들어줘"라고 요청합니다</span></div></li>
+          <li><span class="tag t-shot">캡처</span><div><strong>Draft 저니 전체 화면</strong><span>Journey Builder에서 진입부터 종료까지 캔버스 전체가 보이게</span></div></li>
+          <li><span class="tag t-shot">캡처</span><div><strong>진입 DE 레코드 수</strong><span>Data Extensions에서 내 진입 DE를 열어 레코드 수가 보이게</span></div></li>
+          <li><span class="tag t-input">입력</span><div><strong>검증 값</strong><span>선택 캠페인, 진입 DE 인원, 저니 이름을 아래 '제출물 만들기'에 적습니다</span></div></li>
+        </ul>
+      </section>
+      <section class="blk" aria-labelledby="a1-check">
+        <h2 id="a1-check">확인 필요 사항</h2>
+        <ul class="checks">
+          <li><div><strong>진입 DE 인원이 세그먼트 인원보다 적은가</strong><span>진입 대상은 세그먼트 중 수신동의한 사람만입니다. 같으면 동의 필터가 빠진 것이고, 많으면 조인에서 중복이 생긴 것입니다. 세그먼트 인원은 내 정답지(<code>test_data/EDU0n/진단기대값.md</code>)에 있습니다.</span></div></li>
+          <li><div><strong>이름이 모두 내 실습 ID로 시작하는가</strong><span>저니, 진입 DE, 이메일, Event Definition 모두 <code>EDU01_</code> 또는 <code>EDU02_</code>로 시작해야 합니다.</span></div></li>
+          <li><div><strong>저니 상태가 Draft인가</strong><span>발행(Publish)하지 않습니다.</span></div></li>
+        </ul>
+        <p class="note">'제출물 만들기'에 저니 이름을 넣으면 위의 2번은 바로 판정해 줍니다.</p>
+      </section>
+    </div>
+
+    <aside class="side" aria-label="1차시 배정과 진행 정보">
+      <section class="blk">
+        <h2>배정</h2>
+        <dl class="assign">
+          <div><dt>EDU01</dt><dd><strong>장바구니 리마인드</strong><span>세그먼트: 장바구니 보유(미구매)</span></dd></div>
+          <div><dt>EDU02</dt><dd><strong>휴면 고객 재활성화</strong><span>세그먼트: 최근구매 365일+ (휴면)</span></dd></div>
+        </dl>
+        <p class="note">같은 날 같은 캠페인을 만들면 이벤트 키와 이메일이 섞일 수 있어 서로 다르게 배정했습니다.</p>
+      </section>
+      <section class="blk">
+        <h2>이렇게 시작하세요</h2>
+        <p class="note">진단 결과 아래 캠페인 추천 목록에서 내 배정 캠페인을 번호로 입력하거나, 아래 문장을 복사해 입력합니다.</p>
+        <div class="prompt"><span class="who-tag">EDU01</span><code id="prompt1">장바구니 리마인드 캠페인으로 진행해줘.</code><button type="button" class="btn btn-sm" data-copy="prompt1">복사</button></div>
+        <div class="prompt"><span class="who-tag">EDU02</span><code id="prompt2">휴면 고객 재활성화 캠페인으로 진행해줘.</code><button type="button" class="btn btn-sm" data-copy="prompt2">복사</button></div>
+        <p class="note">복잡도별 후보가 나오면 '중간'을 고르고, 실행 모드는 <strong>수동</strong>, 진행 방식은 <strong>정의서 후 승인</strong>을 고릅니다.</p>
+        <p class="note">추천 목록이 없는 새 창에서 시작했다면 먼저 <code>내 실습 ID는 EDU01이야.</code>처럼 실습 ID부터 알려 줍니다. 빠뜨리면 이름에 실습 ID가 붙지 않습니다.</p>
+      </section>
+      <section class="blk">
+        <h2>브랜드 값을 물어보면</h2>
+        <p class="note">이메일을 처음 만들 때 챗봇이 로고·대표 색·폰트·브랜드명을 묻고 멈춥니다. 아래 문장을 복사해 그대로 답하세요.</p>
+        <div class="prompt"><span class="who-tag">답변</span><code class="lines" id="brand1">로고는 없음(브랜드명 글자로 표시)
+대표 색은 #2B59C3, 보조 색은 없음
+폰트는 기본 시스템 폰트
+브랜드명과 발신자 표시명은 어반몰
+푸터 회사명은 어반몰 (교육용)으로 해줘.</code><button type="button" class="btn btn-sm" data-copy="brand1">복사</button></div>
+      </section>
+    </aside>
+  </div>
+
+  <section class="submit" aria-labelledby="a1-submit">
+    <div class="submit-head">
+      <div>
+        <h2 id="a1-submit">제출물 만들기</h2>
+        <p class="hint">값을 적고 파일을 첨부한 뒤 <strong>제출 파일 저장</strong>을 누르세요.</p>
+        <p class="hint">저장된 파일 하나에 값과 첨부가 모두 들어갑니다.</p>
+      </div>
+      <div class="who">
+        <span class="who-label" id="a1-who">실습 ID</span>
+        <div class="seg" data-r="who" role="group" aria-labelledby="a1-who">
+          <button type="button" data-slot="EDU01" aria-pressed="false">EDU01</button>
+          <button type="button" data-slot="EDU02" aria-pressed="false">EDU02</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="submit-grid">
+      <section class="panel" aria-labelledby="a1-val">
+        <h3 class="sub-title" id="a1-val">입력값</h3>
+        <p class="assigned-note" data-r="assigned"></p>
+        <label class="field"><span>선택 캠페인</span><input data-f="campaign" type="text" maxlength="200" autocomplete="off" placeholder="예: 장바구니 리마인드 (중간)"></label>
+        <label class="field"><span>진입 DE 인원</span><input data-f="entryCount" data-type="count" type="text" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="진입 DE 레코드 수"></label>
+        <p class="check" data-check="entry" hidden></p>
+        <label class="field"><span>저니 이름</span><input data-f="journeyName" type="text" class="mono" maxlength="200" autocomplete="off" spellcheck="false" placeholder="EDU0n_…"></label>
+        <p class="check" data-check="prefix" hidden></p>
+        <label class="tick"><input data-f="checkDraft" type="checkbox"><span>저니 상태가 Draft인 것을 확인했다 (발행 안 함)</span></label>
+        <label class="tick"><input data-f="checkCompared" type="checkbox"><span>Journey Builder 화면과 정의서를 대조했다</span></label>
+      </section>
+
+      <section class="panel" aria-labelledby="a1-file">
+        <h3 class="sub-title" id="a1-file">파일 <span class="count" data-r="fileCount"></span></h3>
+        <div class="drop" data-r="drop" role="button" tabindex="0" aria-label="파일 첨부">
+          <span class="drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
+          <p><strong>여기에 끌어놓거나 눌러서 고르세요</strong></p>
+          <p class="small">png·jpg·pptx·xlsx·pdf, 파일당 20MB</p>
+        </div>
+        <input type="file" data-r="fileInput" multiple hidden accept=".png,.jpg,.jpeg,.gif,.webp,.pptx,.xlsx,.pdf,.csv">
+        <div class="thumbs" data-r="thumbs" hidden></div>
+        <ul class="filelist" data-r="filelist" hidden></ul>
+        <p class="small" data-r="filesEmpty">아직 첨부한 파일이 없습니다.</p>
+        <p class="small">창을 닫으면 첨부한 파일은 다시 넣어야 합니다.</p>
+      </section>
+    </div>
+
+    <div class="ready">
+      <ul class="ready-list" data-r="readyList" aria-label="제출 준비 상태"></ul>
+      <button type="button" class="btn btn-primary btn-lg" data-r="saveBtn">제출 파일 저장</button>
+      <p class="save-note" data-r="saveNote" aria-live="polite"></p>
+    </div>
+  </section>
+  </div>
+
+  <!-- ==================== 2차시 ==================== -->
+  <div class="tabpanel" id="panel-a2" role="tabpanel" aria-labelledby="tab-a2" hidden>
+  <header class="hero">
+    <p class="eyebrow">MCE 캠페인 자동화 실습 · 2차시</p>
+    <h1>정의서를 수정하여 저니 만들기</h1>
+    <p class="lead">1차시에서 만든 정의서(xlsx)를 직접 고친 뒤, 고친 정의서로 새 Draft 저니를 만듭니다. 정의서의 칸 하나하나가 저니의 어디가 되는지 확인하는 과제입니다. 다 만들면 이 페이지 아래 '제출물 만들기'에서 파일을 첨부하고 제출 파일을 저장해 주세요.</p>
+    <ul class="meta">
+      <li><span class="k">대상</span><span class="v mono">EDU01 · EDU02</span></li>
+      <li><span class="k">결과물</span><span class="v">고친 정의서 xlsx · 캡처 · 변경 요약</span></li>
+      <li><span class="k">저니 상태</span><span class="pill">Draft로만 생성</span></li>
+    </ul>
+  </header>
+
+  <section class="canvas" aria-labelledby="a2-flow">
+    <div class="canvas-head">
+      <h2 class="sec-title" id="a2-flow">할 일</h2>
+      <p class="small">1~3은 엑셀에서, 4~5는 챗봇과 Journey Builder에서 진행합니다</p>
+    </div>
+    <ol class="flow">
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="node-num">1</span></span>
+        <div class="node-text"><strong>정의서 복사</strong><span><code>campaign_definitions</code> 폴더의 1차시 정의서를 복사해 파일 이름 끝에 <code>_v2</code>를 붙입니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></svg><span class="node-num">2</span></span>
+        <div class="node-text"><strong>대기 기간 바꾸기</strong><span>'저니 구조' 시트의 '대기 기간 (Wait)' 열에서 배정된 경로의 대기 기간을 바꿉니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 9h16M12 12.5v5M9.5 15h5"/></svg><span class="node-num">3</span></span>
+        <div class="node-text"><strong>메일 추가</strong><span>배정된 경로 끝에 대기와 메일 행을 새로 넣습니다. 새 메일 이름을 적으면 챗봇이 메일을 새로 만듭니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="4.5" cy="12" r="2"/><rect x="9.5" y="9" width="5" height="6" rx="1"/><circle cx="19.5" cy="12" r="2"/><path d="M6.5 12h3M14.5 12h3"/></svg><span class="node-num">4</span></span>
+        <div class="node-text"><strong>고친 정의서로 저니 생성</strong><span>"이 정의서로 저니 생성"을 요청합니다. 기획 단계 없이 저니만 새로 만듭니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="7" height="14" rx="1.5"/><rect x="13.5" y="5" width="7" height="14" rx="1.5"/><path d="M7 9.5v5M17 9.5v5"/></svg><span class="node-num">5</span></span>
+        <div class="node-text"><strong>1차시 저니와 비교</strong><span>Journey Builder에서 두 저니를 열어 달라진 곳이 정의서와 같은지 봅니다.</span></div>
+      </li>
+    </ol>
+  </section>
+
+  <div class="notice">
+    <div class="col">
+      <section class="blk" aria-labelledby="a2-howto">
+        <h2 id="a2-howto">정의서 고치는 법</h2>
+        <p class="note">'저니 구조' 시트만 고칩니다. 아래는 Path B 끝에 메일 1통을 추가하는 예입니다. Path A라면 단계 번호의 <code>-B</code>를 <code>-A</code>로 바꿔 읽습니다.</p>
+        <p class="tbl-cap">고치기 전</p>
+        <div class="sheet-wrap"><table class="sheet">
+          <thead><tr><th>단계 (B열)</th><th>컴포넌트 유형 (C열)</th><th>상세 설정 조건 (D열)</th><th>연결 콘텐츠 명칭 (E열)</th><th>대기 기간 (G열)</th></tr></thead>
+          <tbody>
+            <tr><td>3-B</td><td>Message (Email)</td><td>[Path B] 남은 상품 리마인드</td><td>EDU0n_…_리마인드</td><td>-</td></tr>
+            <tr><td>4-B</td><td>Wait &amp; Exit</td><td>발송 후 종료</td><td>-</td><td>1 Days</td></tr>
+          </tbody>
+        </table></div>
+        <p class="tbl-cap">고친 뒤 <span><i class="key key-chg"></i>바꾼 칸 <i class="key key-new"></i>새로 넣은 행</span></p>
+        <div class="sheet-wrap"><table class="sheet">
+          <thead><tr><th>단계 (B열)</th><th>컴포넌트 유형 (C열)</th><th>상세 설정 조건 (D열)</th><th>연결 콘텐츠 명칭 (E열)</th><th>대기 기간 (G열)</th></tr></thead>
+          <tbody>
+            <tr><td>3-B</td><td>Message (Email)</td><td>[Path B] 남은 상품 리마인드</td><td>EDU0n_…_리마인드</td><td>-</td></tr>
+            <tr><td>4-B</td><td class="chg">Wait</td><td class="chg">발송 후 대기</td><td>-</td><td class="chg">3 Days</td></tr>
+            <tr class="new"><td>5-B</td><td>Message (Email)</td><td>[Path B] 2차 리마인드</td><td>새 메일 이름 (예: EDU0n_장바구니_2차리마인드)</td><td>-</td></tr>
+            <tr class="new"><td>6-B</td><td>Wait &amp; Exit</td><td>발송 후 종료</td><td>-</td><td>1 Days</td></tr>
+          </tbody>
+        </table></div>
+        <ol class="howto">
+          <li>새 행의 A열(캠페인 ID)은 위 행과 같게 적습니다. 예: <code>CP_001</code></li>
+          <li>B열(단계)은 같은 경로의 번호를 이어서 <code>5-B</code>, <code>6-B</code>처럼 적습니다.</li>
+          <li>마지막 행이 <code>Wait &amp; Exit</code>면 거기서 저니가 끝납니다. 그 행을 <code>Wait</code>로 바꾸고, 새 마지막 행에 <code>Wait &amp; Exit</code>를 둡니다.</li>
+          <li>C열 표기는 기존 행에서 그대로 복사해 씁니다.</li>
+          <li>E열에는 1차시 메일과 다른 새 이름(<code>EDU0n_</code>로 시작)을 적고, F열(이메일 ID)은 비워 둡니다. 챗봇이 이 이름으로 메일을 새로 만듭니다.</li>
+          <li>대기 기간은 G열에 <code>3 Days</code>처럼 적습니다. 발송 일정·진입 DE가 있는 '시나리오 정의' 시트는 그대로 둡니다.</li>
+        </ol>
+      </section>
+      <section class="blk" aria-labelledby="a2-deliv">
+        <h2 id="a2-deliv">제출물</h2>
+        <ul class="deliv">
+          <li><span class="tag">파일</span><div><strong>고친 정의서 xlsx</strong><span><code>campaign_definitions</code> 폴더의 <code>CP_…_v2.xlsx</code></span></div></li>
+          <li><span class="tag t-shot">캡처</span><div><strong>새 Draft 저니 전체 화면</strong><span>Journey Builder에서 진입부터 종료까지 캔버스 전체가 보이게</span></div></li>
+          <li><span class="tag t-shot">캡처</span><div><strong>추가·수정한 액티비티 설정 화면</strong><span>새 저니에서 바꾼 대기나 추가한 메일을 눌러 설정 값이 보이게</span></div></li>
+          <li><span class="tag t-input">입력</span><div><strong>검증 값</strong><span>새 저니 이름과 변경 요약을 아래 '제출물 만들기'에 적습니다</span></div></li>
+        </ul>
+      </section>
+      <section class="blk" aria-labelledby="a2-check">
+        <h2 id="a2-check">확인 필요 사항</h2>
+        <ul class="checks">
+          <li><div><strong>고친 값이 새 저니에 그대로 들어갔는가</strong><span>새 저니에서 액티비티를 눌러 대기 기간과 추가한 메일이 정의서와 같은지 봅니다. 다르면 정의서 표기를 고치고 다시 요청합니다.</span></div></li>
+          <li><div><strong>1차시 저니가 그대로 있는가</strong><span>새 저니는 따로 생깁니다. 1차시 저니를 지우거나 고치지 않습니다.</span></div></li>
+          <li><div><strong>이름이 모두 내 실습 ID로 시작하는가</strong><span>새 저니와 새로 만든 메일 모두 <code>EDU01_</code> 또는 <code>EDU02_</code>로 시작해야 합니다.</span></div></li>
+          <li><div><strong>저니 상태가 Draft인가</strong><span>발행(Publish)하지 않습니다.</span></div></li>
+        </ul>
+        <p class="note">'제출물 만들기'에 저니 이름을 넣으면 위의 3번은 바로 판정해 줍니다.</p>
+      </section>
+    </div>
+
+    <aside class="side" aria-label="2차시 배정과 진행 정보">
+      <section class="blk">
+        <h2>고칠 내용</h2>
+        <dl class="assign">
+          <div><dt>EDU01</dt><dd><strong>Path B 대기 기간 변경 + Path A 메일 추가</strong><span>Path B의 대기 기간을 다른 값으로 바꾸고, Path A 끝에 대기와 메일 1통을 이어 붙입니다.</span></dd></div>
+          <div><dt>EDU02</dt><dd><strong>Path A 대기 기간 변경 + Path B 메일 추가</strong><span>Path A의 대기 기간을 다른 값으로 바꾸고, Path B 끝에 대기와 메일 1통을 이어 붙입니다.</span></dd></div>
+        </dl>
+        <p class="note">캠페인은 1차시와 같습니다. 1차시 정의서를 바탕으로 고칩니다.</p>
+      </section>
+      <section class="blk">
+        <h2>이렇게 요청하세요</h2>
+        <p class="note">정의서를 저장하고 닫은 뒤, 고친 xlsx 파일을 챗봇에 첨부하여 아래 문장을 함께 보냅니다. EDU02는 'EDU01'을 'EDU02'로 바꿉니다.</p>
+        <div class="prompt"><span class="who-tag">예시 · EDU01</span><code id="prompt3">내 실습 ID는 EDU01이야. 첨부한 정의서로 저니 생성해줘.</code><button type="button" class="btn btn-sm" data-copy="prompt3">복사</button></div>
+        <p class="note">이름이 같은 저니가 이미 있으면 새 저니 이름 끝에 <code>_v1</code>이 자동으로 붙습니다. 브랜드 값을 물으면 아래 답변을 붙여 넣습니다.</p>
+      </section>
+      <section class="blk">
+        <h2>브랜드 값을 물어보면</h2>
+        <p class="note">이메일을 처음 만들 때 챗봇이 로고·대표 색·폰트·브랜드명을 묻고 멈춥니다. 아래 문장을 복사해 그대로 답하세요.</p>
+        <div class="prompt"><span class="who-tag">답변</span><code class="lines" id="brand2">로고는 없음(브랜드명 글자로 표시)
+대표 색은 #2B59C3, 보조 색은 없음
+폰트는 기본 시스템 폰트
+브랜드명과 발신자 표시명은 어반몰
+푸터 회사명은 어반몰 (교육용)으로 해줘.</code><button type="button" class="btn btn-sm" data-copy="brand2">복사</button></div>
+      </section>
+    </aside>
+  </div>
+
+  <section class="submit" aria-labelledby="a2-submit">
+    <div class="submit-head">
+      <div>
+        <h2 id="a2-submit">제출물 만들기</h2>
+        <p class="hint">값을 적고 파일을 첨부한 뒤 <strong>제출 파일 저장</strong>을 누르세요.</p>
+        <p class="hint">저장된 파일 하나에 값과 첨부가 모두 들어갑니다.</p>
+      </div>
+      <div class="who">
+        <span class="who-label" id="a2-who">실습 ID</span>
+        <div class="seg" data-r="who" role="group" aria-labelledby="a2-who">
+          <button type="button" data-slot="EDU01" aria-pressed="false">EDU01</button>
+          <button type="button" data-slot="EDU02" aria-pressed="false">EDU02</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="submit-grid">
+      <section class="panel" aria-labelledby="a2-val">
+        <h3 class="sub-title" id="a2-val">입력값</h3>
+        <p class="assigned-note" data-r="assigned"></p>
+        <label class="field"><span>새 저니 이름</span><input data-f="journeyName" type="text" class="mono" maxlength="200" autocomplete="off" spellcheck="false" placeholder="EDU0n_…"></label>
+        <p class="check" data-check="prefix" hidden></p>
+        <label class="field"><span>변경 요약</span><textarea data-f="summary" maxlength="1000" rows="3" placeholder="정의서에서 무엇을 바꿨고, 새 저니에서 어디가 달라졌는지 한두 줄"></textarea></label>
+        <label class="tick"><input data-f="checkDraft" type="checkbox"><span>새 저니 상태가 Draft인 것을 확인했다 (발행 안 함)</span></label>
+        <label class="tick"><input data-f="checkCompared" type="checkbox"><span>새 저니에서 추가·수정한 액티비티를 눌러 정의서 값과 대조했다</span></label>
+        <label class="tick"><input data-f="checkKept" type="checkbox"><span>1차시 저니는 지우거나 고치지 않았다</span></label>
+      </section>
+
+      <section class="panel" aria-labelledby="a2-file">
+        <h3 class="sub-title" id="a2-file">파일 <span class="count" data-r="fileCount"></span></h3>
+        <div class="drop" data-r="drop" role="button" tabindex="0" aria-label="파일 첨부">
+          <span class="drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
+          <p><strong>여기에 끌어놓거나 눌러서 고르세요</strong></p>
+          <p class="small">png·jpg·pptx·xlsx·pdf, 파일당 20MB</p>
+        </div>
+        <input type="file" data-r="fileInput" multiple hidden accept=".png,.jpg,.jpeg,.gif,.webp,.pptx,.xlsx,.pdf,.csv">
+        <div class="thumbs" data-r="thumbs" hidden></div>
+        <ul class="filelist" data-r="filelist" hidden></ul>
+        <p class="small" data-r="filesEmpty">아직 첨부한 파일이 없습니다.</p>
+        <p class="small">창을 닫으면 첨부한 파일은 다시 넣어야 합니다.</p>
+      </section>
+    </div>
+
+    <div class="ready">
+      <ul class="ready-list" data-r="readyList" aria-label="제출 준비 상태"></ul>
+      <button type="button" class="btn btn-primary btn-lg" data-r="saveBtn">제출 파일 저장</button>
+      <p class="save-note" data-r="saveNote" aria-live="polite"></p>
+    </div>
+  </section>
+  </div>
+
+  <!-- ==================== 3차시 ==================== -->
+  <div class="tabpanel" id="panel-a3" role="tabpanel" aria-labelledby="tab-a3" hidden>
+  <header class="hero">
+    <p class="eyebrow">MCE 캠페인 자동화 실습 · 3차시</p>
+    <h1>만든 저니로 실제 발송하기</h1>
+    <p class="lead">1차시나 2차시에서 만든 저니 하나를 골라 나에게만 실제로 메일을 보냅니다. 기존 진입 DE 대신 내 행만 넣은 시험 발송용 DE를 연결하고, 메일을 받은 뒤 저니를 중지하면 끝납니다. 다 하면 이 페이지 아래 '제출물 만들기'에서 캡처를 첨부하고 제출 파일을 저장해 주세요.</p>
+    <ul class="meta">
+      <li><span class="k">대상</span><span class="v mono">EDU01 · EDU02</span></li>
+      <li><span class="k">결과물</span><span class="v">캡처 · 검증 값</span></li>
+      <li><span class="k">저니 상태</span><span class="pill">발행 후 반드시 중지</span></li>
+    </ul>
+  </header>
+
+  <section class="canvas" aria-labelledby="a3-flow">
+    <div class="canvas-head">
+      <h2 class="sec-title" id="a3-flow">할 일</h2>
+      <p class="small">1·3은 챗봇에 요청하고, 확인·발행·중지는 SFMC 화면에서 직접 합니다</p>
+    </div>
+    <ol class="flow">
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></svg><span class="node-num">1</span></span>
+        <div class="node-text"><strong>시험 발송용 DE 만들기</strong><span>챗봇에 요청해 <code>_TEST</code> DE를 만들고 내 메일 주소로 행 1개를 넣습니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 9h16M12 12.5v5M9.5 15h5"/></svg><span class="node-num">2</span></span>
+        <div class="node-text"><strong>내 행 확인하기</strong><span>Contact Builder에서 <code>_TEST</code> DE를 열어 내 행 1개만 들어갔는지 봅니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="4.5" cy="12" r="2"/><rect x="9.5" y="9" width="5" height="6" rx="1"/><circle cx="19.5" cy="12" r="2"/><path d="M6.5 12h3M14.5 12h3"/></svg><span class="node-num">3</span></span>
+        <div class="node-text"><strong>저니 수정</strong><span>챗봇에 요청해 진입 DE를 <code>_TEST</code>로, 실행은 1회로 바꾸고, 메일 앞에 대기가 있으면 5분으로 줄입니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5 12 13l8.5-6.5"/></svg><span class="node-num">4</span></span>
+        <div class="node-text"><strong>발행 후 수신 확인</strong><span>저니를 발행(Activate)하고 메일함에서 경로별 메일이 왔는지 봅니다.</span></div>
+      </li>
+      <li class="node">
+        <span class="node-dot"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg><span class="node-num">5</span></span>
+        <div class="node-text"><strong>저니 중지</strong><span>확인이 끝나면 바로 저니를 중지(Stop)합니다.</span></div>
+      </li>
+    </ol>
+  </section>
+
+  <div class="notice">
+    <div class="col">
+      <section class="blk" aria-labelledby="a3-check">
+        <h2 id="a3-check">발행 전 확인 필요 사항</h2>
+        <ul class="checks">
+          <li><div><strong>진입 DE가 <code>_TEST</code> DE로 바뀌었는가</strong><span>기존 진입 DE에는 테스트 고객 3,000명이 들어 있습니다. 주소가 모두 가짜라 그대로 발행하면 수천 통이 반송되고 계정의 발송 평판이 떨어집니다.</span></div></li>
+          <li><div><strong><code>_TEST</code> DE에 내 행만 있는가</strong><span>내 메일 주소로 만든 행 1개 외에는 아무것도 없어야 합니다.</span></div></li>
+          <li><div><strong>진입 일정이 1회 실행인가</strong><span>매일 반복(Recurring)으로 두면 다음 날 또 발송됩니다.</span></div></li>
+          <li><div><strong>메일 앞 대기가 있다면 5분으로 바뀌었는가</strong><span>메일 앞에 대기가 없는 저니라면 건너뜁니다. 3 Days 그대로면 교육 시간 안에 두 번째 메일을 받을 수 없습니다. 맨 끝 <code>Wait &amp; Exit</code>는 그대로 둬도 됩니다.</span></div></li>
+          <li><div><strong>받은 뒤 저니를 중지했는가</strong><span>중지하지 않으면 저니가 계속 실행 상태로 남습니다.</span></div></li>
+        </ul>
+        <p class="note">이 과제에서만 저니를 발행합니다. 1·2차시 저니는 이 과제에서 고르지 않은 쪽을 Draft 그대로 둡니다.</p>
+      </section>
+      <section class="blk" aria-labelledby="a3-deliv">
+        <h2 id="a3-deliv">제출물</h2>
+        <ul class="deliv">
+          <li><span class="tag t-shot">캡처</span><div><strong>시험 발송용 DE 레코드</strong><span><code>_TEST</code> DE를 열어 내 행 1개만 있는 것이 보이게</span></div></li>
+          <li><span class="tag t-shot">캡처</span><div><strong>저니 진입 설정</strong><span>진입 소스에 <code>_TEST</code> DE와 1회 실행이 보이게</span></div></li>
+          <li><span class="tag t-shot">캡처</span><div><strong>받은 메일</strong><span>메일함에서 받은 메일 (여러 통이면 모두)</span></div></li>
+          <li><span class="tag t-input">입력</span><div><strong>검증 값</strong><span>저니 이름과 시험 발송용 DE 이름을 아래 '제출물 만들기'에 적습니다</span></div></li>
+        </ul>
+      </section>
+    </div>
+
+    <aside class="side" aria-label="3차시 진행 정보">
+      <section class="blk">
+        <h2>발송할 저니 고르기</h2>
+        <p class="note">1차시 저니와 2차시 저니 중 하나만 고릅니다. 메일이 더 많은 2차시 저니를 고르면 확인할 거리가 많아서 좋습니다.</p>
+        <p class="note">받는 주소는 내 회사 메일(<code>@milvus.co.kr</code>)을 씁니다. 메일이 안 보이면 스팸함도 확인합니다.</p>
+      </section>
+      <section class="blk">
+        <h2>1. 시험 발송용 DE 만들기</h2>
+        <p class="note">챗봇에 아래 문장을 보냅니다. <code>EDU01</code>은 내 실습 ID로, <code>내메일@milvus.co.kr</code>은 내 메일 주소로 바꾸고, 2차시 저니를 골랐다면 '1차시'를 '2차시'로 바꿉니다. 챗봇이 DE를 만들고 내 행 1개를 넣어 줍니다.</p>
+        <div class="prompt"><span class="who-tag">예시 · EDU01</span><code class="lines" id="prompt5">내 실습 ID는 EDU01이야.
+1차시 저니의 진입 DE와 컬럼이 같은 시험 발송용 DE를 이름 끝에 _TEST를 붙여서 내 실습 ID 폴더에 발송 가능(Sendable)하게 만들어줘.
+그리고 내 메일 주소 내메일@milvus.co.kr 으로 행 1개만 넣어줘. 수신동의는 Y, 회원 ID는 EDU01_TEST_01, 나머지는 임의 값으로.</code><button type="button" class="btn btn-sm" data-copy="prompt5">복사</button></div>
+      </section>
+      <section class="blk">
+        <h2>2. 내 행 확인하기</h2>
+        <ol class="howto">
+          <li>Contact Builder → Data Extensions에서 내 실습 ID 폴더(예: <code>EDU01</code>)를 열고, 그 안의 <code>_TEST</code> DE를 엽니다.</li>
+          <li>Records 탭에서 행이 1개뿐인지, 메일 주소가 내 주소이고 수신동의 값이 <code>Y</code>인지 봅니다.</li>
+          <li>분기 기준 칸(예: 장바구니 금액)의 값을 보고 Path A와 B 중 어느 쪽 메일이 올지 미리 짐작해 둡니다.</li>
+        </ol>
+      </section>
+      <section class="blk">
+        <h2>3. 저니 수정 요청</h2>
+        <p class="note">1번과 같은 대화창에서 이어서 보냅니다. 실습 ID는 1번에서 이미 알려 줬으니 다시 적지 않아도 됩니다. 2차시 저니를 골랐다면 '1차시'를 '2차시'로 바꿉니다.</p>
+        <div class="prompt"><span class="who-tag">예시</span><code class="lines" id="prompt7">1차시 저니의 진입 DE를 내 _TEST DE로 바꾸고, 진입 일정은 1회 실행(Run Once)으로, 메일 앞에 대기가 있으면 5분으로 바꿔줘.
+발행은 하지 마.</code><button type="button" class="btn btn-sm" data-copy="prompt7">복사</button></div>
+      </section>
+      <section class="blk">
+        <h2>4~5. 확인·발행·중지 (직접)</h2>
+        <ol class="howto">
+          <li>Journey Builder에서 저니를 열고 맨 왼쪽 진입 소스를 눌러, 데이터 확장이 <code>_TEST</code> DE이고 일정이 Run Once인지 확인합니다.</li>
+          <li>메일 앞에 Wait가 있다면 5분인지 확인합니다. 다르면 화면에서 직접 고칩니다.</li>
+          <li>위의 '발행 전 확인 필요 사항'을 다시 보고, 오른쪽 위 Activate로 발행합니다.</li>
+          <li>메일을 다 받으면 저니 화면의 Stop으로 중지합니다.</li>
+        </ol>
+      </section>
+    </aside>
+  </div>
+
+  <section class="submit" aria-labelledby="a3-submit">
+    <div class="submit-head">
+      <div>
+        <h2 id="a3-submit">제출물 만들기</h2>
+        <p class="hint">값을 적고 파일을 첨부한 뒤 <strong>제출 파일 저장</strong>을 누르세요.</p>
+        <p class="hint">저장된 파일 하나에 값과 첨부가 모두 들어갑니다.</p>
+      </div>
+      <div class="who">
+        <span class="who-label" id="a3-who">실습 ID</span>
+        <div class="seg" data-r="who" role="group" aria-labelledby="a3-who">
+          <button type="button" data-slot="EDU01" aria-pressed="false">EDU01</button>
+          <button type="button" data-slot="EDU02" aria-pressed="false">EDU02</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="submit-grid">
+      <section class="panel" aria-labelledby="a3-val">
+        <h3 class="sub-title" id="a3-val">입력값</h3>
+        <p class="assigned-note" data-r="assigned"></p>
+        <label class="field"><span>저니 이름</span><input data-f="journeyName" type="text" class="mono" maxlength="200" autocomplete="off" spellcheck="false" placeholder="EDU0n_…"></label>
+        <p class="check" data-check="prefix" hidden></p>
+        <label class="field"><span>시험 발송용 DE 이름</span><input data-f="testDe" type="text" class="mono" maxlength="200" autocomplete="off" spellcheck="false" placeholder="EDU0n_…_TEST"></label>
+        <p class="check" data-check="testDe" hidden></p>
+        <label class="tick"><input data-f="checkOnlyMe" type="checkbox"><span>시험 발송용 DE에 내 행 1개만 있는 것을 확인했다</span></label>
+        <label class="tick"><input data-f="checkRunOnce" type="checkbox"><span>Journey Builder에서 진입 DE·1회 실행(메일 앞 대기가 있으면 5분)이 바뀐 것을 직접 확인했다</span></label>
+        <label class="tick"><input data-f="checkStopped" type="checkbox"><span>메일을 받은 뒤 저니를 중지했다</span></label>
+      </section>
+
+      <section class="panel" aria-labelledby="a3-file">
+        <h3 class="sub-title" id="a3-file">파일 <span class="count" data-r="fileCount"></span></h3>
+        <div class="drop" data-r="drop" role="button" tabindex="0" aria-label="파일 첨부">
+          <span class="drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
+          <p><strong>여기에 끌어놓거나 눌러서 고르세요</strong></p>
+          <p class="small">png·jpg·pptx·xlsx·pdf, 파일당 20MB</p>
+        </div>
+        <input type="file" data-r="fileInput" multiple hidden accept=".png,.jpg,.jpeg,.gif,.webp,.pptx,.xlsx,.pdf,.csv">
+        <div class="thumbs" data-r="thumbs" hidden></div>
+        <ul class="filelist" data-r="filelist" hidden></ul>
+        <p class="small" data-r="filesEmpty">아직 첨부한 파일이 없습니다.</p>
+        <p class="small">창을 닫으면 첨부한 파일은 다시 넣어야 합니다.</p>
+      </section>
+    </div>
+
+    <div class="ready">
+      <ul class="ready-list" data-r="readyList" aria-label="제출 준비 상태"></ul>
+      <button type="button" class="btn btn-primary btn-lg" data-r="saveBtn">제출 파일 저장</button>
+      <p class="save-note" data-r="saveNote" aria-live="polite"></p>
+    </div>
+  </section>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* 제출 파일 생성기 — DOM을 건드리지 않는 순수 코드. 저장되는 제출 파일(HTML 한 장)의 모양과 보기 코드를 담는다 */
+const SUBMISSION = (() => {
+  const FONTS = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap";
+  const CSS = `
+:root{--bg:#f1f5f6;--surface:#fff;--surface-2:#e7eef0;--ink:#12222a;--muted:#56686f;--line:#d0dbdf;--accent:#0a675e;--accent-soft:#d7ede9;--ok:#1a7442;--ok-soft:#dbefe2;--warn:#8c5300;--warn-soft:#f8e8cc;--bad:#ad271e;--bad-soft:#f8dfdb;--scrim:rgba(8,16,20,.82);--on-scrim:#eef4f5;--sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1518;--surface:#142026;--surface-2:#1a2930;--ink:#e2ebee;--muted:#93a5ad;--line:#293a42;--accent:#4dc0af;--accent-soft:#133833;--ok:#72d29c;--ok-soft:#12321f;--warn:#f0b75c;--warn-soft:#382810;--bad:#ff8d82;--bad-soft:#3b1714;--scrim:rgba(0,0,0,.85);color-scheme:dark}}
+*,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 var(--sans);-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+h1,h2{margin:0;text-wrap:balance}p{margin:0}
+.mono{font-family:var(--mono)}
+.wrap{max-width:980px;margin:0 auto;padding:32px 24px 64px;display:flex;flex-direction:column;gap:30px}
+.loading,.small{font-size:13px;color:var(--muted)}
+.eyebrow{font:500 12.5px var(--mono);letter-spacing:.06em;color:var(--accent)}
+.v-head{display:flex;flex-direction:column;gap:8px;border-bottom:2px solid var(--ink);padding-bottom:18px}
+.v-head h1{font-size:clamp(24px,3.6vw,32px);font-weight:700;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
+.prefix{font-family:var(--mono)}
+.assigned{color:var(--muted);font-weight:500}
+.v-sec{display:flex;flex-direction:column;gap:12px}
+.v-sec h2{font-size:17px;font-weight:600}
+.verdicts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.check{font-size:14px;line-height:1.5;padding:7px 10px;border-radius:6px;display:flex;gap:8px;align-items:flex-start;background:var(--surface-2);color:var(--muted)}
+.check::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:currentColor;margin-top:7px}
+.check.tone-ok{background:var(--ok-soft);color:var(--ok)}
+.check.tone-warn{background:var(--warn-soft);color:var(--warn)}
+.check.tone-bad{background:var(--bad-soft);color:var(--bad)}
+.vals{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.vals div{display:grid;grid-template-columns:170px minmax(0,1fr);gap:12px;padding:10px 14px;border-top:1px solid var(--line)}
+.vals div:first-child{border-top:0}
+.vals dt{font-size:13px;color:var(--muted)}
+.vals dd{margin:0;overflow-wrap:anywhere}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.shot{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+.shot-btn{display:block;padding:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface-2);aspect-ratio:16/10;cursor:zoom-in;width:100%}
+.shot-btn img{width:100%;height:100%;object-fit:cover;object-position:top left;display:block}
+.shot figcaption{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.filelist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.frow{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px 12px;align-items:center}
+.ftype{font:600 11px/1 var(--mono);padding:5px 6px;border-radius:4px;background:var(--surface-2);letter-spacing:.04em}
+.ftype.x-xlsx,.ftype.x-csv{background:var(--ok-soft);color:var(--ok)}
+.ftype.x-pdf{background:var(--bad-soft);color:var(--bad)}
+.ftype.x-pptx{background:var(--warn-soft);color:var(--warn)}
+.finfo{display:flex;flex-direction:column;min-width:0}
+.fname{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fmeta{font-size:12px;color:var(--muted)}
+.factions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.btn{font:500 13px/1.3 var(--sans);padding:6px 11px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.preview{grid-column:1/-1;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px;min-width:0;font-size:13px}
+.pv-sheet{font:600 12px var(--mono);color:var(--accent)}
+.pv-table{overflow-x:auto;max-width:100%}
+.pv-table table{border-collapse:collapse;font-size:12.5px}
+.pv-table th,.pv-table td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top;white-space:pre-wrap;min-width:60px;max-width:280px}
+.pv-table th{background:var(--surface-2);font-weight:600}
+.foot{border-top:1px solid var(--line);padding-top:14px}
+.lightbox{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.lb-inner{width:min(1400px,100%);max-height:100%;display:flex;flex-direction:column;gap:10px;min-width:0}
+.lb-bar{display:flex;justify-content:space-between;gap:12px;align-items:center;color:var(--on-scrim);min-width:0}
+.lb-bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;font-size:14px}
+.lb-inner img{max-width:100%;max-height:calc(100vh - 110px);object-fit:contain;border-radius:6px;background:var(--surface);align-self:center}
+@media (max-width:560px){.wrap{padding:20px 16px 48px}.vals div{grid-template-columns:1fr;gap:2px}.frow{grid-template-columns:auto minmax(0,1fr)}.factions{grid-column:1/-1;justify-content:flex-start}}
+`;
+
+  // 저장된 제출 파일 안에서 실행되는 보기 코드. 바깥 변수를 쓰지 않는다(소스 그대로 파일에 들어간다).
+  function viewerMain() {
+    "use strict";
+    const SHEETJS = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    const IMAGE_EXT = ["png", "jpg", "jpeg", "gif", "webp"];
+    const TABLE_EXT = ["xlsx", "csv"];
+    const app = document.getElementById("app");
+    let p;
+    try { p = JSON.parse(document.getElementById("payload").textContent); }
+    catch (e) { app.textContent = "제출 파일을 읽지 못했습니다. 파일이 손상됐을 수 있습니다."; return; }
+
+    const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+    const fmtSize = n => (n < 1024 ? n + " B" : n < 1048576 ? Math.max(1, Math.round(n / 1024)) + " KB" : (n / 1048576).toFixed(1) + " MB");
+    const fmtDate = iso => { const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }); };
+    const bytesOf = f => { const bin = atob(f.b64 || ""); const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return u8; };
+
+    const verdicts = Array.isArray(p.verdicts) ? p.verdicts : [];
+    const rows = Array.isArray(p.rows) ? p.rows : [];
+    const files = Array.isArray(p.files) ? p.files : [];
+    const images = files.filter(f => IMAGE_EXT.indexOf(f.ext) >= 0);
+    const docs = files.filter(f => IMAGE_EXT.indexOf(f.ext) < 0);
+    app.textContent = "";
+
+    const head = el("header", "v-head");
+    head.appendChild(el("p", "eyebrow", "MCE 저니 실습 과제 · " + (p.round ? p.round + " " : "") + "제출물"));
+    const h1 = el("h1"); h1.appendChild(el("span", "prefix", p.slot || "?")); h1.appendChild(el("span", "assigned", p.assigned || "")); head.appendChild(h1);
+    head.appendChild(el("p", "small", (p.title ? p.title + " · " : "") + "저장 " + fmtDate(p.savedAt) + " · 캡처 " + images.length + "장 · 첨부 파일 " + docs.length + "개"));
+    app.appendChild(head);
+
+    const s1 = el("section", "v-sec"); s1.appendChild(el("h2", null, "판정"));
+    const ul = el("ul", "verdicts");
+    verdicts.forEach(d => ul.appendChild(el("li", "check tone-" + (d.tone || "muted"), d.text || "")));
+    s1.appendChild(ul); app.appendChild(s1);
+
+    const s2 = el("section", "v-sec"); s2.appendChild(el("h2", null, "검증 값"));
+    const dl = el("dl", "vals");
+    rows.forEach(r => { const d = el("div"); d.appendChild(el("dt", null, r.label)); d.appendChild(el("dd", r.mono ? "mono" : null, r.value == null || r.value === "" ? "—" : String(r.value))); dl.appendChild(d); });
+    s2.appendChild(dl); app.appendChild(s2);
+
+    const s3 = el("section", "v-sec"); s3.appendChild(el("h2", null, "캡처 " + images.length + "장"));
+    if (!images.length) s3.appendChild(el("p", "small", "첨부한 캡처가 없습니다."));
+    else {
+      const grid = el("div", "gallery");
+      images.forEach(f => {
+        const fig = el("figure", "shot");
+        const b = el("button", "shot-btn"); b.type = "button"; b.setAttribute("aria-label", "크게 보기: " + f.name);
+        const img = el("img"); img.alt = f.name; img.src = "data:" + f.type + ";base64," + f.b64;
+        b.appendChild(img); b.addEventListener("click", () => openLb(f, img.src));
+        fig.appendChild(b); fig.appendChild(el("figcaption", null, f.name)); grid.appendChild(fig);
+      });
+      s3.appendChild(grid);
+    }
+    app.appendChild(s3);
+
+    const s4 = el("section", "v-sec"); s4.appendChild(el("h2", null, "첨부 파일 " + docs.length + "개"));
+    if (!docs.length) s4.appendChild(el("p", "small", "첨부한 파일이 없습니다."));
+    else {
+      const list = el("ul", "filelist");
+      docs.forEach(f => {
+        const li = el("li", "frow");
+        li.appendChild(el("span", "ftype x-" + (f.ext || "file"), String(f.ext || "file").toUpperCase()));
+        const info = el("div", "finfo"); info.appendChild(el("span", "fname", f.name)); info.appendChild(el("span", "fmeta", fmtSize(f.size || 0))); li.appendChild(info);
+        const acts = el("div", "factions"); const box = el("div", "preview"); box.hidden = true;
+        if (TABLE_EXT.indexOf(f.ext) >= 0) { const pv = el("button", "btn", "표 보기"); pv.type = "button"; pv.addEventListener("click", () => togglePreview(f, box, pv)); acts.appendChild(pv); }
+        const dlb = el("button", "btn", "내려받기"); dlb.type = "button"; dlb.addEventListener("click", () => download(f)); acts.appendChild(dlb);
+        li.appendChild(acts); li.appendChild(box); list.appendChild(li);
+      });
+      s4.appendChild(list);
+    }
+    app.appendChild(s4);
+    app.appendChild(el("p", "small foot", "이 파일은 'MCE 저니 실습 과제' 페이지에서 저장한 제출물입니다. 첨부 파일은 모두 이 파일 안에 들어 있어서 따로 받을 필요가 없습니다."));
+
+    function download(f) {
+      const url = URL.createObjectURL(new Blob([bytesOf(f)], { type: f.type || "application/octet-stream" }));
+      const a = document.createElement("a"); a.href = url; a.download = f.name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 15000);
+    }
+    let sheetPromise = null;
+    function loadSheetJS() {
+      if (window.XLSX) return Promise.resolve(window.XLSX);
+      if (!sheetPromise) sheetPromise = new Promise((res, rej) => {
+        const s = document.createElement("script"); s.src = SHEETJS; s.async = true;
+        s.onload = () => (window.XLSX ? res(window.XLSX) : rej(new Error("no XLSX")));
+        s.onerror = () => { sheetPromise = null; rej(new Error("load failed")); };
+        document.head.appendChild(s);
+      });
+      return sheetPromise;
+    }
+    async function togglePreview(f, box, btn) {
+      if (!box.hidden) { box.hidden = true; btn.textContent = "표 보기"; return; }
+      box.hidden = false; btn.textContent = "표 닫기";
+      if (box.dataset.loaded) return;
+      box.textContent = "불러오는 중…";
+      try {
+        const XLSX = await loadSheetJS();
+        const wb = XLSX.read(bytesOf(f), { type: "array" });
+        box.textContent = "";
+        wb.SheetNames.forEach(sn => {
+          let rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: false, defval: "", blankrows: false });
+          rows = rows.filter(r => r.some(x => String(x).trim() !== ""));
+          box.appendChild(el("p", "pv-sheet", sn));
+          if (!rows.length) { box.appendChild(el("p", "small", "빈 시트")); return; }
+          let width = 0; rows.forEach(r => { width = Math.max(width, r.length); }); width = Math.min(width, 14);
+          const table = el("table"); const tb = el("tbody");
+          rows.slice(0, 100).forEach((r, i) => { const tr = el("tr"); for (let j = 0; j < width; j++) tr.appendChild(el(i === 0 ? "th" : "td", null, r[j] == null ? "" : String(r[j]))); tb.appendChild(tr); });
+          table.appendChild(tb); const wrap = el("div", "pv-table"); wrap.appendChild(table); box.appendChild(wrap);
+          if (rows.length > 100) box.appendChild(el("p", "small", "처음 100행만 보여 줍니다. 전체는 " + rows.length + "행입니다."));
+        });
+        box.dataset.loaded = "1";
+      } catch (e) { box.textContent = "표를 열지 못했습니다. 인터넷 연결을 확인하거나, 내려받아서 엑셀로 열어 주세요."; }
+    }
+    const lb = document.getElementById("lb"), lbImg = document.getElementById("lbImg"), lbName = document.getElementById("lbName"), lbClose = document.getElementById("lbClose");
+    function openLb(f, src) { lbImg.src = src; lbImg.alt = f.name; lbName.textContent = f.name; lb.hidden = false; lbClose.focus(); }
+    function closeLb() { lb.hidden = true; lbImg.removeAttribute("src"); }
+    lbClose.addEventListener("click", closeLb);
+    lb.addEventListener("click", e => { if (e.target === lb) closeLb(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && !lb.hidden) closeLb(); });
+  }
+
+  const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+
+  function build(payload) {
+    const json = JSON.stringify(payload).replace(/</g, "\\u003c");
+    const title = payload.slot + " " + (payload.round || "") + " 제출 · " + (payload.assigned || "");
+    return "<!doctype html>\n<html lang=\"ko\">\n<head>\n<meta charset=\"utf-8\">\n"
+      + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n"
+      + "<title>" + esc(title) + "</title>\n"
+      + "<link rel=\"stylesheet\" href=\"" + FONTS + "\">\n"
+      + "<style>" + CSS + "</style>\n</head>\n<body>\n"
+      + "<main class=\"wrap\" id=\"app\"><p class=\"loading\">제출 내용을 불러오는 중입니다.</p></main>\n"
+      + "<div class=\"lightbox\" id=\"lb\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"lbName\" hidden><div class=\"lb-inner\"><div class=\"lb-bar\"><span id=\"lbName\"></span><button type=\"button\" class=\"btn\" id=\"lbClose\">닫기</button></div><img id=\"lbImg\" alt=\"\"></div></div>\n"
+      + "<script type=\"application/json\" id=\"payload\">" + json + "<\/script>\n"
+      + "<script>(" + viewerMain.toString() + ")();<\/script>\n"
+      + "</body>\n</html>\n";
+  }
+
+  return { build };
+})();
+</script>
+<script>
+/* 과제 페이지 동작 — 차수 탭마다 제출 폼이 하나씩 있고, 실습 ID는 모든 탭이 함께 쓴다 */
+(() => {
+  "use strict";
+  const TYPES = {
+    png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", pdf: "application/pdf", csv: "text/csv",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  };
+  const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
+  const SLOTS = ["EDU01", "EDU02"];
+  const MAX_FILE = 20 * 1024 * 1024;
+  const WARN_TOTAL = 25 * 1024 * 1024;
+  const LS = "mce-edu-assignment:";
+
+  const $ = id => document.getElementById(id);
+  const S = { slot: null, tab: "a1" };
+  let toastTimer = null, seq = 0;
+
+  // ---------- helpers
+  function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function lsGet(k) { try { return localStorage.getItem(LS + k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(LS + k, v); } catch (e) {} }
+  function lsDel(k) { try { localStorage.removeItem(LS + k); } catch (e) {} }
+  function extOf(name) { const m = /\.([A-Za-z0-9]+)$/.exec(name || ""); return m ? m[1].toLowerCase() : ""; }
+  function parseCount(v) { const d = String(v == null ? "" : v).replace(/[^\d]/g, ""); return d ? Number(d) : null; }
+  function fmtNum(n) { return Number(n).toLocaleString("ko-KR"); }
+  function fmtSize(n) { if (n < 1024) return n + " B"; if (n < 1048576) return Math.max(1, Math.round(n / 1024)) + " KB"; return (n / 1048576).toFixed(1) + " MB"; }
+  function stamp() { const d = new Date(); const p = n => String(n).padStart(2, "0"); return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); }
+  function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 3400); }
+  function setCheck(n, res) { if (!res) { n.hidden = true; return; } n.hidden = false; n.className = "check tone-" + res.tone; n.textContent = res.text; }
+  function toBase64(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => { const s = String(r.result); res(s.slice(s.indexOf(",") + 1)); };
+      r.onerror = () => rej(new Error("read failed"));
+      r.readAsDataURL(file);
+    });
+  }
+  function saveFile(text, name) {
+    const url = URL.createObjectURL(new Blob([text], { type: "text/html;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+  }
+
+  // ---------- checks
+  function entryCheck(entry) {
+    if (entry === 0) return { tone: "warn", text: "0명입니다. 진입 DE를 채우는 SQL은 1~2분 걸리니 잠시 뒤 레코드 수를 다시 보세요." };
+    return null;
+  }
+  function prefixCheck(slot, name) {
+    if (!name || !slot) return null;
+    if (name.indexOf(slot + "_") === 0) return { tone: "ok", text: "저니 이름이 실습 ID " + slot + "_ 로 시작합니다." };
+    return { tone: "bad", text: "저니 이름이 " + slot + "_ 로 시작하지 않습니다. 실습 ID를 다시 확인하세요." };
+  }
+  function testDeCheck(slot, name) {
+    if (!name || !slot) return null;
+    if (name.indexOf(slot + "_") !== 0) return { tone: "bad", text: "DE 이름이 " + slot + "_ 로 시작하지 않습니다. 실습 ID를 다시 확인하세요." };
+    if (!/_TEST$/i.test(name)) return { tone: "bad", text: "이름 끝에 _TEST가 없습니다. 기존 진입 DE로 발송하지 않았는지 확인하세요." };
+    return { tone: "ok", text: "시험 발송용 DE 이름이 맞습니다." };
+  }
+  const tick = (on, yes, no) => ({ tone: on ? "ok" : "warn", text: on ? yes : no });
+  const nImg = files => files.filter(f => IMAGE_EXT.has(f.ext)).length;
+  const hasExt = (files, ext) => files.some(f => f.ext === ext);
+  const filled = list => list.filter(x => x !== "" && x != null).length;
+
+  // ---------- 차수별 설정: 입력칸은 HTML의 data-f, 판정·준비 상태·제출 파일 내용은 여기서 정한다
+  const ASSIGNMENTS = [
+    {
+      id: "a1", round: "1차시", title: "진단 결과로 저니 만들기", assignLabel: "배정 캠페인", namePh: "_…",
+      assigned: { EDU01: "장바구니 리마인드", EDU02: "휴면 고객 재활성화" },
+      live: (v, slot) => ({ entry: entryCheck(v.entryCount), prefix: prefixCheck(slot, v.journeyName) }),
+      ready: (v, files) => {
+        const n = filled([v.campaign, v.entryCount, v.journeyName]);
+        return [
+          { ok: hasExt(files, "xlsx"), label: "정의서 xlsx" },
+          { ok: hasExt(files, "pptx"), label: "분석 리포트 pptx" },
+          { ok: nImg(files) >= 2, label: "캡처 2장 이상", now: nImg(files) + "장" },
+          { ok: n === 3, label: "검증 값 3개", now: n + "개" },
+        ];
+      },
+      verdicts: (v, slot) => [
+        v.entryCount == null ? { tone: "muted", text: "진입 DE 인원이 비어 있습니다." }
+          : entryCheck(v.entryCount),
+        prefixCheck(slot, v.journeyName) || { tone: "muted", text: "저니 이름이 비어 있습니다." },
+        tick(v.checkDraft, "저니 상태가 Draft인 것을 확인했다고 표시했습니다.", "Draft 확인 체크가 없습니다."),
+        tick(v.checkCompared, "Journey Builder 화면과 정의서를 대조했다고 표시했습니다.", "화면과 정의서 대조 체크가 없습니다."),
+      ],
+      rows: v => [
+        { label: "선택 캠페인", value: v.campaign },
+        { label: "진입 DE 인원", value: v.entryCount == null ? "" : fmtNum(v.entryCount) + "명" },
+        { label: "저니 이름", value: v.journeyName, mono: true },
+      ],
+    },
+    {
+      id: "a2", round: "2차시", title: "정의서를 수정하여 저니 만들기", assignLabel: "고칠 내용", namePh: "_…_v1",
+      assigned: { EDU01: "Path B 대기 기간 변경 + Path A 메일 추가", EDU02: "Path A 대기 기간 변경 + Path B 메일 추가" },
+      live: (v, slot) => ({ prefix: prefixCheck(slot, v.journeyName) }),
+      ready: (v, files) => {
+        const n = filled([v.journeyName, v.summary]);
+        return [
+          { ok: hasExt(files, "xlsx"), label: "고친 정의서 xlsx" },
+          { ok: nImg(files) >= 2, label: "캡처 2장 이상", now: nImg(files) + "장" },
+          { ok: n === 2, label: "검증 값 2개", now: n + "개" },
+        ];
+      },
+      verdicts: (v, slot) => [
+        prefixCheck(slot, v.journeyName) || { tone: "muted", text: "새 저니 이름이 비어 있습니다." },
+        tick(v.checkDraft, "새 저니 상태가 Draft인 것을 확인했다고 표시했습니다.", "Draft 확인 체크가 없습니다."),
+        tick(v.checkCompared, "새 저니의 추가·수정한 액티비티를 정의서 값과 대조했다고 표시했습니다.", "정의서 대조 체크가 없습니다."),
+        tick(v.checkKept, "1차시 저니는 그대로 두었다고 표시했습니다.", "1차시 저니 보존 체크가 없습니다."),
+      ],
+      rows: v => [
+        { label: "새 저니 이름", value: v.journeyName, mono: true },
+        { label: "변경 요약", value: v.summary },
+      ],
+    },
+    {
+      id: "a3", round: "3차시", title: "만든 저니로 실제 발송하기", assignLabel: "캠페인", namePh: "_…",
+      assigned: { EDU01: "장바구니 리마인드", EDU02: "휴면 고객 재활성화" },
+      live: (v, slot) => ({ prefix: prefixCheck(slot, v.journeyName), testDe: testDeCheck(slot, v.testDe) }),
+      ready: (v, files) => {
+        const n = filled([v.journeyName, v.testDe]);
+        return [
+          { ok: nImg(files) >= 3, label: "캡처 3장 이상", now: nImg(files) + "장" },
+          { ok: n === 2, label: "검증 값 2개", now: n + "개" },
+          { ok: !!v.checkStopped, label: "저니 중지" },
+        ];
+      },
+      verdicts: (v, slot) => [
+        testDeCheck(slot, v.testDe) || { tone: "muted", text: "시험 발송용 DE 이름이 비어 있습니다." },
+        prefixCheck(slot, v.journeyName) || { tone: "muted", text: "저니 이름이 비어 있습니다." },
+        tick(v.checkOnlyMe, "시험 발송용 DE에 내 행 1개만 있는 것을 확인했다고 표시했습니다.", "시험 발송용 DE 확인 체크가 없습니다."),
+        tick(v.checkRunOnce, "Journey Builder에서 진입 DE·1회 실행·대기 변경을 직접 확인했다고 표시했습니다.", "저니 수정 결과 확인 체크가 없습니다."),
+        tick(v.checkStopped, "메일을 받은 뒤 저니를 중지했다고 표시했습니다.", "저니 중지 체크가 없습니다. 저니가 아직 실행 중인지 확인이 필요합니다."),
+      ],
+      rows: v => [
+        { label: "저니 이름", value: v.journeyName, mono: true },
+        { label: "시험 발송용 DE", value: v.testDe, mono: true },
+      ],
+    },
+  ];
+
+  // ---------- 제출 폼 (차수 하나당 하나)
+  function makeForm(cfg) {
+    const root = $("panel-" + cfg.id);
+    const q = r => root.querySelector('[data-r="' + r + '"]');
+    const inputs = {}; root.querySelectorAll("[data-f]").forEach(i => { inputs[i.dataset.f] = i; });
+    let files = [], armed = false, armTimer = null;
+    const valuesBySlot = {}, filesBySlot = {};   // 입력값·첨부는 실습 ID별로 메모리에만 둔다 — 전환해도 섞이지 않고, 새로고침하면 모두 비워진다.
+
+    function values() {
+      const v = {};
+      for (const k in inputs) {
+        const i = inputs[k];
+        v[k] = i.type === "checkbox" ? i.checked : i.dataset.type === "count" ? parseCount(i.value) : i.value.trim();
+      }
+      return v;
+    }
+    function fill(saved) {
+      for (const k in inputs) {
+        const i = inputs[k]; const val = saved ? saved[k] : null;
+        if (i.type === "checkbox") i.checked = !!val;
+        else i.value = val == null ? "" : (typeof val === "number" ? fmtNum(val) : String(val));
+      }
+    }
+    function renderSlot() {
+      q("assigned").textContent = S.slot ? "실습 ID · " + S.slot + " · " + cfg.assignLabel + ": " + cfg.assigned[S.slot] : "오른쪽 위 '실습 ID'에서 EDU01 또는 EDU02를 먼저 고르세요.";
+      if (inputs.journeyName) inputs.journeyName.placeholder = (S.slot || "EDU0n") + cfg.namePh;
+      renderChecks();
+    }
+    function renderChecks() {
+      const res = cfg.live(values(), S.slot);
+      root.querySelectorAll("[data-check]").forEach(n => setCheck(n, res[n.dataset.check]));
+      renderReady();
+    }
+    function renderReady() {
+      const ul = q("readyList"); ul.textContent = "";
+      for (const it of cfg.ready(values(), files)) {
+        const li = el("li", it.ok ? "is-ok" : "is-miss");
+        li.append(el("span", "mark", it.ok ? "✓" : "–"), el("span", null, it.label + (it.now ? " (" + it.now + ")" : "")));
+        ul.appendChild(li);
+      }
+      disarm();
+    }
+    function renderFiles() {
+      const thumbs = q("thumbs"), list = q("filelist");
+      thumbs.textContent = ""; list.textContent = "";
+      for (const f of files) {
+        const rm = el("button", "btn btn-sm del", "빼기"); rm.type = "button"; rm.setAttribute("aria-label", f.name + " 빼기");
+        rm.addEventListener("click", () => removeFile(f.id));
+        if (IMAGE_EXT.has(f.ext)) {
+          const fig = el("figure", "thumb");
+          const box = el("div", "thumb-img"); const img = el("img"); img.src = f.url; img.alt = ""; box.appendChild(img);
+          const cap = el("figcaption"); cap.append(el("span", "fname", f.name), el("span", "fmeta", fmtSize(f.size)));
+          fig.append(box, cap, rm); thumbs.appendChild(fig);
+        } else {
+          const li = el("li", "frow");
+          const info = el("div", "finfo"); info.append(el("span", "fname", f.name), el("span", "fmeta", fmtSize(f.size)));
+          rm.classList.remove("del"); rm.classList.add("btn-ghost");
+          li.append(el("span", "ftype x-" + f.ext, f.ext.toUpperCase()), info, rm); list.appendChild(li);
+        }
+      }
+      thumbs.hidden = !thumbs.children.length; list.hidden = !list.children.length;
+      q("filesEmpty").hidden = files.length > 0;
+      const total = files.reduce((a, f) => a + f.size, 0);
+      const fc = q("fileCount");
+      fc.textContent = files.length ? files.length + "개 · " + fmtSize(total) : "";
+      fc.classList.toggle("size-note", total > WARN_TOTAL);
+      fc.title = total > WARN_TOTAL ? "합계가 25MB를 넘어 메일로 보내기 어려울 수 있습니다." : "";
+      renderReady();
+    }
+
+    function uniqueName(name) {
+      if (!files.some(f => f.name === name)) return name;
+      const dot = name.lastIndexOf("."); const base = dot > 0 ? name.slice(0, dot) : name; const ext = dot > 0 ? name.slice(dot) : "";
+      let n = 2; while (files.some(f => f.name === base + "-" + n + ext)) n++;
+      return base + "-" + n + ext;
+    }
+    function addFiles(list) {
+      let added = 0;
+      for (const file of list) {
+        let ext = extOf(file.name);
+        if (!ext && file.type && file.type.indexOf("image/") === 0) ext = file.type.slice(6).replace("jpeg", "jpg");
+        if (!TYPES[ext]) {
+          if (ext === "xls") toast("xls는 xlsx로 다시 저장해서 첨부하세요.");
+          else if (ext === "ppt") toast("ppt는 pptx로 다시 저장해서 첨부하세요.");
+          else toast("." + (ext || "?") + " 형식은 첨부할 수 없습니다. png·jpg·pptx·xlsx·pdf만 됩니다.");
+          continue;
+        }
+        if (file.size > MAX_FILE) { toast(file.name + ": 20MB를 넘는 파일은 첨부할 수 없습니다."); continue; }
+        if (files.some(f => f.file === file || (f.origName === file.name && f.size === file.size && file.name && !/^image\.[a-z0-9]+$/i.test(file.name)))) { toast(file.name + "은(는) 이미 첨부했습니다."); continue; }
+        let name = file.name || "";
+        if (!name || /^image\.[a-z0-9]+$/i.test(name)) name = (S.slot ? S.slot + "_" : "") + cfg.round + "_캡처_" + stamp() + "." + (ext || "png");
+        name = uniqueName(name);
+        files.push({ id: "f" + (++seq), file, name, origName: file.name, ext, type: TYPES[ext], size: file.size, url: IMAGE_EXT.has(ext) ? URL.createObjectURL(file) : null });
+        added++;
+      }
+      if (added) renderFiles();
+      return added;
+    }
+    function removeFile(id) {
+      const f = files.find(x => x.id === id);
+      if (f && f.url) URL.revokeObjectURL(f.url);
+      files = files.filter(x => x.id !== id);
+      renderFiles();
+    }
+
+    function disarm() {
+      if (!armed) return;
+      armed = false; clearTimeout(armTimer);
+      q("saveBtn").textContent = "제출 파일 저장"; q("saveNote").textContent = "";
+    }
+    async function onSave() {
+      const btn = q("saveBtn"), note = q("saveNote");
+      if (!S.slot) { toast("먼저 '실습 ID'를 고르세요."); root.querySelector('[data-r="who"] button').focus(); return; }
+      const v = values();
+      if (!files.length && !filled(Object.keys(v).filter(k => typeof v[k] !== "boolean").map(k => v[k]))) { toast("입력값이나 첨부 파일이 하나도 없습니다."); return; }
+      const missing = cfg.ready(v, files).filter(i => !i.ok);
+      if (missing.length && !armed) {
+        armed = true; btn.textContent = "그래도 저장";
+        note.textContent = "빠진 항목: " + missing.map(i => i.label).join(", ") + ". 이대로 저장하려면 한 번 더 누르세요.";
+        clearTimeout(armTimer); armTimer = setTimeout(disarm, 8000);
+        return;
+      }
+      armed = false; clearTimeout(armTimer);
+      btn.disabled = true; btn.textContent = "만드는 중…"; note.textContent = "";
+      try {
+        const packed = [];
+        for (const f of files) packed.push({ name: f.name, ext: f.ext, type: f.type, size: f.size, b64: await toBase64(f.file) });
+        const payload = {
+          format: "mce-edu-submission", v: 2, round: cfg.round, title: cfg.title, slot: S.slot, assigned: cfg.assigned[S.slot], savedAt: new Date().toISOString(),
+          values: v, verdicts: cfg.verdicts(v, S.slot).filter(Boolean), rows: cfg.rows(v), files: packed,
+        };
+        const name = S.slot + "_" + cfg.round + "_제출_" + stamp() + ".html";
+        saveFile(SUBMISSION.build(payload), name);
+        note.textContent = "저장했습니다: " + name + ". 다운로드 폴더에 있습니다. 메일에서 .html 첨부가 막히면 zip으로 압축해서 보내면 됩니다.";
+      } catch (e) {
+        toast("제출 파일을 만들지 못했습니다. 다시 시도해 주세요.");
+      } finally {
+        btn.disabled = false; btn.textContent = "제출 파일 저장";
+      }
+    }
+
+    function swap(prev, next) {
+      if (!prev) return;   // 실습 ID를 고르기 전에 적은 값은 처음 고른 실습 ID의 것으로 둔다
+      valuesBySlot[prev] = values(); filesBySlot[prev] = files;
+      files = filesBySlot[next] || [];
+      fill(valuesBySlot[next]);
+    }
+
+    for (const k in inputs) {
+      const i = inputs[k];
+      i.addEventListener(i.type === "checkbox" ? "change" : "input", renderChecks);
+    }
+    const drop = q("drop"), fileInput = q("fileInput");
+    drop.addEventListener("click", () => fileInput.click());
+    drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
+    drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("is-over"); });
+    drop.addEventListener("dragleave", () => drop.classList.remove("is-over"));
+    drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("is-over"); addFiles(Array.from((e.dataTransfer && e.dataTransfer.files) || [])); });
+    fileInput.addEventListener("change", () => { const fs = Array.from(fileInput.files || []); fileInput.value = ""; addFiles(fs); });
+    q("saveBtn").addEventListener("click", onSave);
+
+    fill(null);   // 브라우저가 폼 값을 되살려도 비운다
+    return { id: cfg.id, swap, renderSlot, renderFiles, addFiles, drop };
+  }
+
+  const forms = ASSIGNMENTS.map(makeForm);
+  const formOf = id => forms.find(f => f.id === id);
+
+  // ---------- 실습 ID (모든 탭 공통)
+  function renderWho() {
+    for (const b of document.querySelectorAll('[data-r="who"] button')) b.setAttribute("aria-pressed", String(b.dataset.slot === S.slot));
+  }
+  function switchSlot(next) {
+    if (next === S.slot) return;
+    const prev = S.slot;
+    forms.forEach(f => f.swap(prev, next));
+    S.slot = next; lsSet("slot", next);
+    renderWho(); forms.forEach(f => { f.renderSlot(); f.renderFiles(); });
+    if (prev) toast(next + " 제출물로 바꿨습니다. " + prev + "에 적은 값과 첨부는 따로 보관됩니다.");
+  }
+  for (const b of document.querySelectorAll('[data-r="who"] button')) b.addEventListener("click", () => switchSlot(b.dataset.slot));
+
+  // ---------- 차수 탭
+  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+  function showTab(id, focus) {
+    for (const t of tabs) {
+      const on = t.dataset.tab === id;
+      t.setAttribute("aria-selected", String(on)); t.tabIndex = on ? 0 : -1;
+      $("panel-" + t.dataset.tab).hidden = !on;
+      if (on && focus) t.focus();
+    }
+    S.tab = id; lsSet("tab", id);
+    try { if (location.hash !== "#" + id) history.replaceState(null, "", "#" + id); } catch (e) {}
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => showTab(t.dataset.tab));
+    t.addEventListener("keydown", e => {
+      let j = null;
+      if (e.key === "ArrowRight") j = (i + 1) % tabs.length;
+      else if (e.key === "ArrowLeft") j = (i - 1 + tabs.length) % tabs.length;
+      else if (e.key === "Home") j = 0;
+      else if (e.key === "End") j = tabs.length - 1;
+      if (j == null) return;
+      e.preventDefault(); showTab(tabs[j].dataset.tab, true);
+    });
+  });
+
+  // ---------- 공통
+  function copyText(btn) {
+    const src = $(btn.dataset.copy); const text = src.textContent;
+    const fallback = () => {
+      const range = document.createRange(); range.selectNodeContents(src);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      toast("문장을 선택해 두었습니다. Ctrl+C로 복사하세요.");
+    };
+    try {
+      navigator.clipboard.writeText(text).then(() => { btn.textContent = "복사됨"; setTimeout(() => { btn.textContent = "복사"; }, 1500); }, fallback);
+    } catch (e) { fallback(); }
+  }
+  for (const b of document.querySelectorAll("[data-copy]")) b.addEventListener("click", () => copyText(b));
+  window.addEventListener("dragover", e => e.preventDefault());
+  window.addEventListener("drop", e => e.preventDefault());
+  document.addEventListener("paste", e => {
+    const fs = Array.from((e.clipboardData && e.clipboardData.files) || []);
+    if (!fs.length) return;
+    e.preventDefault();
+    const f = formOf(S.tab);
+    if (f.addFiles(fs)) f.drop.scrollIntoView({ block: "nearest" });
+  });
+
+  // ---------- 시작
+  const slot = lsGet("slot"); if (slot && SLOTS.indexOf(slot) >= 0) S.slot = slot;
+  lsDel("values"); lsDel("values:EDU01"); lsDel("values:EDU02");   // 이전 버전이 남긴 저장값
+  const hash = location.hash.slice(1), savedTab = lsGet("tab");
+  showTab(formOf(hash) ? hash : formOf(savedTab) ? savedTab : "a1");
+  renderWho(); forms.forEach(f => { f.renderSlot(); f.renderFiles(); });
+})();
+</script>
+</body>
+</html>
